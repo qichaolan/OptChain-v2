@@ -29,6 +29,7 @@ function getGeminiAdapter() {
   }
 
   return new GoogleGenerativeAIAdapter({
+    apiKey: GEMINI_API_KEY,
     model: MODEL_NAME,
   });
 }

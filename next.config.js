@@ -54,6 +54,10 @@ const securityHeaders = [
 
 // Add CSP in production only (can break development with hot reload)
 if (process.env.NODE_ENV === 'production') {
+  // Build frame-src based on configured backend
+  const backendUrl = process.env.OPTCHAIN_BACKEND_URL || '';
+  const frameSources = ["'self'", backendUrl].filter(Boolean).join(' ');
+
   securityHeaders.push({
     key: 'Content-Security-Policy',
     value: [
@@ -63,7 +67,8 @@ if (process.env.NODE_ENV === 'production') {
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://generativelanguage.googleapis.com",
-      "frame-ancestors 'none'",
+      `frame-src ${frameSources}`, // Allow iframes to load backend pages
+      "frame-ancestors 'self'", // Allow being embedded in same origin only
     ].join('; '),
   });
 }
@@ -85,11 +90,29 @@ const nextConfig = {
     ];
   },
 
-  // Proxy API requests to the existing FastAPI backend
+  // Proxy API requests and embedded pages to the existing FastAPI backend
   async rewrites() {
     const backendUrl = getValidatedBackendUrl();
 
     return [
+      // Proxy embedded pages (for iframe loading)
+      {
+        source: '/embed/leaps',
+        destination: `${backendUrl}/leaps`,
+      },
+      {
+        source: '/embed/credit-spreads',
+        destination: `${backendUrl}/credit-spreads`,
+      },
+      {
+        source: '/embed/iron-condors',
+        destination: `${backendUrl}/iron-condors`,
+      },
+      // Proxy static assets from backend
+      {
+        source: '/embed/static/:path*',
+        destination: `${backendUrl}/static/:path*`,
+      },
       // Proxy existing API routes to FastAPI backend
       {
         source: '/api/leaps/:path*',
