@@ -1,0 +1,131 @@
+'use client';
+
+/**
+ * Credit Spreads Page Wrapper with AI Integration
+ *
+ * Wraps the existing Credit Spreads Screener page and provides CopilotKit integration.
+ * This component adds the AI Insights button and panel without modifying
+ * the original page code.
+ */
+
+import React, { useEffect, useCallback, useRef } from 'react';
+import { useOptionChain } from '@/contexts';
+import { AiInsightsButton, AiInsightsPanel } from '@/components/ai';
+import { CreditSpreadMetadata, createCreditSpreadContext } from '@/types';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface CreditSpreadsPageWithAIProps {
+  /**
+   * URL of the existing Credit Spreads page to embed
+   */
+  pageUrl?: string;
+
+  /**
+   * Custom class for the wrapper
+   */
+  className?: string;
+}
+
+// ============================================================================
+// Message Handler for iframe communication
+// ============================================================================
+
+interface SimulationMessage {
+  type: 'CREDIT_SPREAD_SIMULATION_UPDATE';
+  payload: CreditSpreadMetadata;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+export function CreditSpreadsPageWithAI({
+  pageUrl = '/credit-spreads',
+  className = '',
+}: CreditSpreadsPageWithAIProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { setCurrentContext, clearContext } = useOptionChain();
+
+  // Handle messages from the embedded page
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      // Validate origin for security
+      const allowedOrigins = [
+        window.location.origin,
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+      ];
+
+      if (!allowedOrigins.includes(event.origin)) {
+        return;
+      }
+
+      // Check if it's a simulation update message
+      const data = event.data as SimulationMessage;
+      if (data?.type === 'CREDIT_SPREAD_SIMULATION_UPDATE' && data.payload) {
+        const metadata = data.payload;
+
+        // Create context and update state
+        const context = createCreditSpreadContext(metadata);
+        setCurrentContext(context.page, context.contextType, metadata);
+      }
+    },
+    [setCurrentContext]
+  );
+
+  // Set up message listener
+  useEffect(() => {
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearContext();
+    };
+  }, [handleMessage, clearContext]);
+
+  // Inject communication script into iframe
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const injectScript = () => {
+      try {
+        const iframeWindow = iframe.contentWindow;
+        if (!iframeWindow) return;
+
+        // Post a ready message to the parent
+        iframeWindow.postMessage({ type: 'OPTCHAIN_V2_READY' }, '*');
+      } catch (e) {
+        console.log('Using postMessage for cross-origin communication');
+      }
+    };
+
+    iframe.addEventListener('load', injectScript);
+
+    return () => {
+      iframe.removeEventListener('load', injectScript);
+    };
+  }, []);
+
+  return (
+    <div className={`relative w-full h-screen ${className}`}>
+      {/* Embedded Credit Spreads Page */}
+      <iframe
+        ref={iframeRef}
+        src={pageUrl}
+        className="w-full h-full border-0"
+        title="Credit Spreads Screener"
+        sandbox="allow-scripts allow-same-origin allow-forms"
+      />
+
+      {/* AI Components Overlay */}
+      <AiInsightsButton position="bottom-right" />
+      <AiInsightsPanel />
+    </div>
+  );
+}
+
+export default CreditSpreadsPageWithAI;
