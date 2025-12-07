@@ -12,6 +12,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
   ReactNode,
 } from 'react';
 import {
@@ -22,6 +23,7 @@ import {
   ContextEnvelope,
   createContextEnvelope,
 } from '@/types';
+import { AiExplainerContent } from '@/types/ai-response';
 
 // ============================================================================
 // Context State
@@ -39,7 +41,7 @@ interface OptionChainState {
   // AI state
   isAiPanelOpen: boolean;
   isAiLoading: boolean;
-  lastAiResponse: any | null;
+  lastAiResponse: AiExplainerContent | null;
   lastError: string | null;
 }
 
@@ -66,7 +68,7 @@ interface OptionChainActions {
   setAiLoading: (loading: boolean) => void;
 
   // Set AI response
-  setAiResponse: (response: any) => void;
+  setAiResponse: (response: AiExplainerContent) => void;
 
   // Set error
   setError: (error: string | null) => void;
@@ -100,19 +102,24 @@ export function OptionChainProvider({ children }: OptionChainProviderProps) {
   const [currentMetadata, setCurrentMetadata] = useState<PageMetadata | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isAiLoading, setIsAiLoadingState] = useState(false);
-  const [lastAiResponse, setLastAiResponse] = useState<any | null>(null);
+  const [lastAiResponse, setLastAiResponse] = useState<AiExplainerContent | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  // Settings with defaults
-  const [settings, setSettings] = useState<UserSettings>(() => ({
-    theme: typeof window !== 'undefined'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : 'light',
-    device: typeof window !== 'undefined'
-      ? (window.innerWidth < 768 ? 'mobile' : 'desktop')
-      : 'desktop',
-    locale: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
-  }));
+  // Settings with SSR-safe defaults (avoids hydration mismatch)
+  const [settings, setSettings] = useState<UserSettings>({
+    theme: 'light',
+    device: 'desktop',
+    locale: 'en-US',
+  });
+
+  // Detect client-side settings after mount to avoid hydration mismatch
+  useEffect(() => {
+    setSettings({
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      device: window.innerWidth < 768 ? 'mobile' : 'desktop',
+      locale: navigator.language || 'en-US',
+    });
+  }, []);
 
   // Actions
   const setCurrentContext = useCallback(
@@ -145,7 +152,7 @@ export function OptionChainProvider({ children }: OptionChainProviderProps) {
     setIsAiLoadingState(loading);
   }, []);
 
-  const setAiResponse = useCallback((response: any) => {
+  const setAiResponse = useCallback((response: AiExplainerContent) => {
     setLastAiResponse(response);
     setLastError(null);
   }, []);

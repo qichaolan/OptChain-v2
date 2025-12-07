@@ -52,8 +52,9 @@ export function useAiExplainer(): UseAiExplainerReturn {
   useCopilotAction({
     name: AI_EXPLAINER_ACTION.name,
     description: AI_EXPLAINER_ACTION.description,
-    parameters: AI_EXPLAINER_ACTION.parameters as any,
-    handler: async ({ context }) => {
+    parameters: AI_EXPLAINER_ACTION.parameters as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    handler: async (args: Record<string, unknown>) => {
+      const context = args.context as ContextEnvelope<PageMetadata>;
       const actionResult = await handleAiExplainerAction(context);
       if (actionResult.success && actionResult.data) {
         setResult(actionResult.data);

@@ -240,8 +240,8 @@ function ContentRenderer({ content }: { content: AiExplainerContent }) {
       {content.keyInsights && content.keyInsights.length > 0 && (
         <Section title="💡 Key Insights">
           <div className="space-y-3">
-            {content.keyInsights.map((insight, idx) => (
-              <InsightCard key={idx} insight={insight} />
+            {content.keyInsights.map((insight, index) => (
+              <InsightCard key={`insight-${index}`} insight={insight} />
             ))}
           </div>
         </Section>
@@ -313,8 +313,8 @@ function ContentRenderer({ content }: { content: AiExplainerContent }) {
       {content.risks && content.risks.length > 0 && (
         <Section title="⚠️ Risk Factors">
           <div className="space-y-2">
-            {content.risks.map((risk, idx) => (
-              <RiskCard key={idx} risk={risk} />
+            {content.risks.map((risk, index) => (
+              <RiskCard key={`risk-${index}`} risk={risk} />
             ))}
           </div>
         </Section>
@@ -324,8 +324,8 @@ function ContentRenderer({ content }: { content: AiExplainerContent }) {
       {content.watchItems && content.watchItems.length > 0 && (
         <Section title="👁️ What to Watch">
           <div className="space-y-2">
-            {content.watchItems.map((item, idx) => (
-              <WatchItemCard key={idx} item={item} />
+            {content.watchItems.map((item, index) => (
+              <WatchItemCard key={`watch-${index}`} item={item} />
             ))}
           </div>
         </Section>

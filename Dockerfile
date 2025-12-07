@@ -25,11 +25,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install Google Cloud SDK for downloading prompts from GCS
-RUN apk add --no-cache python3 py3-pip curl bash
-RUN curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt
-ENV PATH="/opt/google-cloud-sdk/bin:${PATH}"
-
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
@@ -37,6 +32,15 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Copy node_modules for GCS client (only @google-cloud/storage and deps)
+COPY --from=deps /app/node_modules/@google-cloud ./node_modules/@google-cloud
+COPY --from=deps /app/node_modules/google-auth-library ./node_modules/google-auth-library
+COPY --from=deps /app/node_modules/gaxios ./node_modules/gaxios
+COPY --from=deps /app/node_modules/gcp-metadata ./node_modules/gcp-metadata
+
+# Copy prompt download script
+COPY scripts/download-prompts.js /app/scripts/download-prompts.js
 
 # Create prompts directory
 RUN mkdir -p /app/prompts && chown nextjs:nodejs /app/prompts
@@ -50,7 +54,10 @@ EXPOSE 3001
 
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
-ENV GCS_PROMPTS_PATH="gs://optchainv2/prompts/v2"
+ENV PROMPTS_DIR="/app/prompts"
+# GCS_PROMPTS_PATH must be set at deployment time
+# Do not hardcode bucket paths in open-source code
+ENV GCS_PROMPTS_PATH=""
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "server.js"]

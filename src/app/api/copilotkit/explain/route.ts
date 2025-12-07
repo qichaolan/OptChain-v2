@@ -6,125 +6,38 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import * as fs from 'fs';
-import * as path from 'path';
+import { getGeminiModel } from '@/lib/gemini';
+import { loadPrompt } from '@/lib/prompts';
+import { safeValidateExplainRequest } from '@/lib/validation';
 
 // ============================================================================
-// Configuration
+// Response Types
 // ============================================================================
 
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
-
-// Model configuration matching the existing FastAPI service
-const MODEL_CONFIG = {
-  temperature: 0.2,
-  maxOutputTokens: 10000,
-  topP: 0.8,
-  topK: 40,
-};
-
-// ============================================================================
-// Prompt Loading
-// ============================================================================
-
-function getPromptsDir(): string {
-  // Prompts are in the project's prompts directory
-  const promptsPath = path.join(process.cwd(), 'prompts');
-  if (fs.existsSync(promptsPath)) {
-    return promptsPath;
-  }
-
-  // Fallback for Docker/production
-  const appPromptsPath = '/app/prompts';
-  if (fs.existsSync(appPromptsPath)) {
-    return appPromptsPath;
-  }
-
-  return promptsPath;
-}
-
-function loadPrompt(pageId: string, contextType: string): string {
-  const promptsDir = getPromptsDir();
-
-  // Try specific prompt first: pageId/contextType.txt
-  const specificPath = path.join(promptsDir, pageId.replace('_', '-'), `${contextType}.txt`);
-  if (fs.existsSync(specificPath)) {
-    return fs.readFileSync(specificPath, 'utf-8');
-  }
-
-  // Try page-level prompt
-  const pagePromptPath = path.join(promptsDir, `${pageId}.txt`);
-  if (fs.existsSync(pagePromptPath)) {
-    return fs.readFileSync(pagePromptPath, 'utf-8');
-  }
-
-  // Return default prompt
-  return getDefaultPrompt(pageId, contextType);
-}
-
-function getDefaultPrompt(pageId: string, contextType: string): string {
-  return `You are an expert options analyst AI assistant.
-Your role is to help users understand their options trading simulation results.
-
-## Context
-- Page: ${pageId}
-- Context Type: ${contextType}
-
-## Guidelines
-1. Provide educational, fact-based analysis
-2. Never give specific trading advice like "you should buy" or "you should sell"
-3. Reference actual numbers from the provided metadata
-4. Include risk factors and watch items
-5. Keep explanations clear and accessible
-
-## Output Format
-You MUST respond with valid JSON matching this structure:
-{
-  "summary": "A 2-3 sentence overview of the analysis",
-  "key_insights": [
-    {
-      "title": "Insight title",
-      "description": "Detailed explanation",
-      "sentiment": "positive|neutral|negative"
-    }
-  ],
-  "risks": [
-    {
-      "risk": "Risk description",
-      "severity": "low|medium|high"
-    }
-  ],
-  "watch_items": [
-    {
-      "item": "What to watch",
-      "trigger": "Trigger condition"
-    }
-  ],
-  "disclaimer": "This analysis is for educational purposes only and should not be considered financial advice."
-}
-
-Always return valid JSON - no markdown code blocks.`;
+interface AiResponse {
+  summary: string;
+  key_insights?: Array<{ title: string; description: string; sentiment: string }>;
+  risks?: Array<{ risk: string; severity: string }>;
+  watch_items?: Array<{ item: string; trigger?: string }>;
+  disclaimer?: string;
+  scenarios?: unknown;
+  strategy_name?: string;
+  trade_mechanics?: unknown;
+  key_metrics?: unknown;
+  visualization?: unknown;
+  strategy_analysis?: unknown;
+  risk_management?: unknown;
 }
 
 // ============================================================================
-// Gemini Client
+// Gemini Response Generator
 // ============================================================================
 
 async function generateExplanation(
   systemPrompt: string,
-  metadata: Record<string, any>
-): Promise<Record<string, any>> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
-  }
-
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: MODEL_CONFIG,
-  });
+  metadata: Record<string, unknown>
+): Promise<AiResponse> {
+  const model = getGeminiModel();
 
   const userContent = `
 ## Simulation Data
@@ -142,11 +55,58 @@ Please analyze this simulation data and provide your explanation in the required
   const response = result.response;
   const text = response.text();
 
-  // Parse JSON from response
   return parseGeminiResponse(text);
 }
 
-function parseGeminiResponse(responseText: string): Record<string, any> {
+// ============================================================================
+// Response Parser
+// ============================================================================
+
+/**
+ * Extract JSON object from text using balanced brace matching.
+ * Avoids ReDoS vulnerability from greedy regex patterns.
+ */
+function extractJsonObject(text: string): string | null {
+  const startIdx = text.indexOf('{');
+  if (startIdx === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = startIdx; i < text.length; i++) {
+    const char = text[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') depth++;
+      else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          return text.slice(startIdx, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseGeminiResponse(responseText: string): AiResponse {
   let text = responseText.trim();
 
   // Remove markdown code block if present
@@ -163,13 +123,13 @@ function parseGeminiResponse(responseText: string): Record<string, any> {
   text = text.trim();
 
   try {
-    return JSON.parse(text);
-  } catch (e) {
-    // Try to extract JSON from text
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+    return JSON.parse(text) as AiResponse;
+  } catch {
+    // Try to extract JSON using safe brace matching (avoids ReDoS)
+    const jsonStr = extractJsonObject(text);
+    if (jsonStr) {
       try {
-        return JSON.parse(jsonMatch[0]);
+        return JSON.parse(jsonStr) as AiResponse;
       } catch {
         // Fall through to error
       }
@@ -186,43 +146,36 @@ function parseGeminiResponse(responseText: string): Record<string, any> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { pageId, contextType, metadata, timestamp } = body;
 
-    // Validate required fields
-    if (!pageId || !contextType || !metadata) {
+    // Validate request with Zod
+    const validation = safeValidateExplainRequest(body);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: pageId, contextType, metadata' },
+        { success: false, error: `Validation error: ${validation.error}` },
         { status: 400 }
       );
     }
 
-    // Validate page ID
-    const validPageIds = ['leaps_ranker', 'credit_spread_screener', 'iron_condor_screener'];
-    if (!validPageIds.includes(pageId)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid pageId. Must be one of: ${validPageIds.join(', ')}` },
-        { status: 400 }
-      );
-    }
+    const { pageId, contextType, metadata } = validation.data!;
 
-    // Load appropriate prompt
-    const systemPrompt = loadPrompt(pageId, contextType);
+    // Load appropriate prompt (async with caching)
+    const systemPrompt = await loadPrompt(pageId, contextType);
 
     // Generate explanation
-    const parsedResponse = await generateExplanation(systemPrompt, metadata);
+    const parsedResponse = await generateExplanation(systemPrompt, metadata as Record<string, unknown>);
 
     // Validate response has required fields
     if (!parsedResponse.summary) {
       throw new Error("Response missing required 'summary' field");
     }
 
-    // Build content object matching existing structure
+    // Build content object with camelCase keys to match frontend types
     const content = {
       // Common fields
       summary: parsedResponse.summary || '',
-      key_insights: parsedResponse.key_insights || [],
+      keyInsights: parsedResponse.key_insights || [],
       risks: parsedResponse.risks || [],
-      watch_items: parsedResponse.watch_items || [],
+      watchItems: parsedResponse.watch_items || [],
       disclaimer: parsedResponse.disclaimer ||
         'This analysis is for educational purposes only and should not be considered financial advice.',
 
@@ -230,12 +183,12 @@ export async function POST(req: NextRequest) {
       scenarios: parsedResponse.scenarios,
 
       // Credit Spread / Iron Condor specific
-      strategy_name: parsedResponse.strategy_name,
-      trade_mechanics: parsedResponse.trade_mechanics,
-      key_metrics: parsedResponse.key_metrics,
+      strategyName: parsedResponse.strategy_name,
+      tradeMechanics: parsedResponse.trade_mechanics,
+      keyMetrics: parsedResponse.key_metrics,
       visualization: parsedResponse.visualization,
-      strategy_analysis: parsedResponse.strategy_analysis,
-      risk_management: parsedResponse.risk_management,
+      strategyAnalysis: parsedResponse.strategy_analysis,
+      riskManagement: parsedResponse.risk_management,
     };
 
     return NextResponse.json({
@@ -247,9 +200,9 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('AI Explainer API Error:', error);
-
+    // Log only the error message, not the full error object (avoid leaking sensitive info)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('AI Explainer API Error:', errorMessage);
 
     return NextResponse.json(
       {

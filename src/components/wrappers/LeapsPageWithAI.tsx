@@ -8,7 +8,7 @@
  * the original page code.
  */
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useOptionChain } from '@/contexts';
 import { AiInsightsButton, AiInsightsPanel } from '@/components/ai';
 import { LeapsMetadata, createLeapsContext } from '@/types';
@@ -54,17 +54,22 @@ export function LeapsPageWithAI({
   className = '',
 }: LeapsPageWithAIProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeError, setIframeError] = useState(false);
   const { setCurrentContext, clearContext } = useOptionChain();
 
   // Handle messages from the embedded page
   const handleMessage = useCallback(
     (event: MessageEvent) => {
-      // Validate origin for security
+      // Build allowed origins dynamically based on environment
       const allowedOrigins = [
         window.location.origin,
-        'http://localhost:8080',
-        'http://127.0.0.1:8080',
-      ];
+        // Only allow localhost in development
+        ...(process.env.NODE_ENV === 'development'
+          ? ['http://localhost:8080', 'http://127.0.0.1:8080']
+          : []),
+        // Allow configured origin from environment
+        process.env.NEXT_PUBLIC_ALLOWED_ORIGIN,
+      ].filter(Boolean) as string[];
 
       if (!allowedOrigins.includes(event.origin)) {
         return;
@@ -121,13 +126,32 @@ export function LeapsPageWithAI({
   return (
     <div className={`relative w-full h-screen ${className}`}>
       {/* Embedded LEAPS Page */}
-      <iframe
-        ref={iframeRef}
-        src={pageUrl}
-        className="w-full h-full border-0"
-        title="LEAPS Ranker"
-        sandbox="allow-scripts allow-same-origin allow-forms"
-      />
+      {iframeError ? (
+        <div className="flex flex-col items-center justify-center h-full bg-gray-50">
+          <span className="text-4xl mb-4">⚠️</span>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Failed to load page
+          </h2>
+          <p className="text-gray-600 mb-4">
+            The embedded page could not be loaded.
+          </p>
+          <button
+            onClick={() => setIframeError(false)}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : (
+        <iframe
+          ref={iframeRef}
+          src={pageUrl}
+          className="w-full h-full border-0"
+          title="LEAPS Ranker"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          onError={() => setIframeError(true)}
+        />
+      )}
 
       {/* AI Components Overlay */}
       <AiInsightsButton position="bottom-right" />

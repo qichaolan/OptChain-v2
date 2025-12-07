@@ -32,6 +32,12 @@ This action takes simulation data and returns structured analysis including:
 };
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+
+// ============================================================================
 // Action Handler
 // ============================================================================
 
@@ -44,6 +50,9 @@ This action takes simulation data and returns structured analysis including:
 export async function handleAiExplainerAction(
   context: ContextEnvelope<PageMetadata>
 ): Promise<CopilotActionResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   try {
     // Validate context
     if (!context.page || !context.contextType || !context.metadata) {
@@ -53,7 +62,7 @@ export async function handleAiExplainerAction(
       };
     }
 
-    // Call our backend API
+    // Call our backend API with abort controller for timeout
     const response = await fetch('/api/copilotkit/explain', {
       method: 'POST',
       headers: {
@@ -66,6 +75,7 @@ export async function handleAiExplainerAction(
         metadata: context.metadata,
         settings: context.settings,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -88,11 +98,21 @@ export async function handleAiExplainerAction(
       fromCache: data.cached,
     };
   } catch (error) {
+    // Handle abort specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Request timed out. Please try again.',
+      };
+    }
+
     console.error('AI Explainer Action Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

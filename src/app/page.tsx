@@ -8,6 +8,9 @@
 
 import Link from 'next/link';
 
+// Configurable original app URL (defaults to localhost in development)
+const ORIGINAL_APP_URL = process.env.NEXT_PUBLIC_ORIGINAL_APP_URL || 'http://localhost:8080';
+
 export default function Home() {
   return (
     <main className="min-h-screen p-8">
@@ -114,12 +117,12 @@ export default function Home() {
           <p>
             Original app running at{' '}
             <a
-              href="http://localhost:8080"
+              href={ORIGINAL_APP_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-600 hover:underline"
             >
-              localhost:8080
+              {ORIGINAL_APP_URL.replace(/^https?:\/\//, '')}
             </a>
           </p>
         </footer>

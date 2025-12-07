@@ -11,25 +11,22 @@ import {
   GoogleGenerativeAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { MODEL_NAME } from '@/lib/gemini';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
 const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
 
 // ============================================================================
-// Gemini Client Setup
+// Gemini Adapter Setup
 // ============================================================================
 
 function getGeminiAdapter() {
   if (!GEMINI_API_KEY) {
     throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
   }
-
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
   return new GoogleGenerativeAIAdapter({
     model: MODEL_NAME,
@@ -102,7 +99,9 @@ export async function POST(req: NextRequest) {
 
     return handleRequest(req);
   } catch (error) {
-    console.error('CopilotKit API Error:', error);
+    // Log only the error message to avoid leaking sensitive info
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('CopilotKit API Error:', errorMessage);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

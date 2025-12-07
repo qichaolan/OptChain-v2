@@ -1,8 +1,6 @@
 # OptChain v2 - CopilotKit Integration
 
-This is an experimental CopilotKit-enabled version of the OptionChain web application. It wraps the existing FastAPI-based pages and adds AI-powered insights using CopilotKit and Google Gemini.
-
-**Note:** This is a standalone repository that works alongside the sibling `option` repository.
+This is an experimental CopilotKit-enabled version of the OptionChain web application. It is a AI-powered stock option tools using CopilotKit and Google Gemini.
 
 ## Architecture
 
@@ -61,11 +59,9 @@ OptChain-v2/  (this repo - standalone)
 
 ## Key Features
 
-1. **Non-destructive**: Does NOT modify any existing code in the `option` repo
-2. **Iframe Integration**: Embeds existing pages via iframe
-3. **CopilotKit Chat**: Floating AI chat popup
-4. **AI Insights Panel**: Slide-out panel with structured analysis
-5. **Context Envelope**: Standardized format for passing simulation data to AI
+1. Leaps screener
+2. Credit Spreads Screener
+3. Iron Condor Screener
 
 ## Context Envelope Standard
 
@@ -269,5 +265,8 @@ export function NewPageWithAI({ pageUrl }: { pageUrl: string }) {
 - [ ] Replace iframe with native React components
 - [ ] Add real-time streaming for AI responses
 - [ ] Implement conversation history
-- [ ] Add voice input support
 - [ ] Integrate with CopilotKit Cloud for analytics
+- [ ] Add more option tools
+- [ ] Add earning analysis
+
+
