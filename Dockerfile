@@ -1,53 +1,82 @@
 # OptChain v2 Dockerfile for Cloud Run
-FROM node:18-alpine AS base
+# Multi-service: Next.js frontend + FastAPI backend
 
-# Install dependencies only when needed
-FROM base AS deps
+# ============================================================================
+# Stage 1: Node.js dependencies
+# ============================================================================
+FROM node:18-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
 COPY package.json package-lock.json* ./
 RUN npm ci --only=production
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# ============================================================================
+# Stage 2: Build Next.js
+# ============================================================================
+FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
 
-# Build the application
+# Exclude backend from Next.js build
+RUN rm -rf backend
+
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# ============================================================================
+# Stage 3: Python backend preparation
+# ============================================================================
+FROM python:3.12-slim AS python-deps
+WORKDIR /backend
+
+# Install system dependencies for Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python requirements
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ============================================================================
+# Stage 4: Final production image
+# ============================================================================
+FROM python:3.12-slim AS runner
 WORKDIR /app
+
+# Install Node.js in the Python image
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
 
-# Copy built files
+# ============================================================================
+# Copy Next.js built files
+# ============================================================================
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Copy ONLY the GCS-related node_modules for the download script
-# The standalone build already includes all other dependencies
+# Copy GCS-related node_modules
 COPY --from=deps /app/node_modules/@google-cloud ./node_modules/@google-cloud
 COPY --from=deps /app/node_modules/google-auth-library ./node_modules/google-auth-library
 COPY --from=deps /app/node_modules/gaxios ./node_modules/gaxios
 COPY --from=deps /app/node_modules/gcp-metadata ./node_modules/gcp-metadata
-# Core dependencies
 COPY --from=deps /app/node_modules/abort-controller ./node_modules/abort-controller
 COPY --from=deps /app/node_modules/event-target-shim ./node_modules/event-target-shim
 COPY --from=deps /app/node_modules/node-fetch ./node_modules/node-fetch
 COPY --from=deps /app/node_modules/whatwg-url ./node_modules/whatwg-url
 COPY --from=deps /app/node_modules/webidl-conversions ./node_modules/webidl-conversions
 COPY --from=deps /app/node_modules/tr46 ./node_modules/tr46
-# Stream dependencies
 COPY --from=deps /app/node_modules/readable-stream ./node_modules/readable-stream
 COPY --from=deps /app/node_modules/inherits ./node_modules/inherits
 COPY --from=deps /app/node_modules/string_decoder ./node_modules/string_decoder
@@ -59,14 +88,12 @@ COPY --from=deps /app/node_modules/stream-shift ./node_modules/stream-shift
 COPY --from=deps /app/node_modules/stream-events ./node_modules/stream-events
 COPY --from=deps /app/node_modules/stubs ./node_modules/stubs
 COPY --from=deps /app/node_modules/pump ./node_modules/pump
-# Retry/async dependencies
 COPY --from=deps /app/node_modules/async-retry ./node_modules/async-retry
 COPY --from=deps /app/node_modules/retry ./node_modules/retry
 COPY --from=deps /app/node_modules/retry-request ./node_modules/retry-request
 COPY --from=deps /app/node_modules/extend ./node_modules/extend
 COPY --from=deps /app/node_modules/p-limit ./node_modules/p-limit
 COPY --from=deps /app/node_modules/yocto-queue ./node_modules/yocto-queue
-# HTTP dependencies
 COPY --from=deps /app/node_modules/teeny-request ./node_modules/teeny-request
 COPY --from=deps /app/node_modules/https-proxy-agent ./node_modules/https-proxy-agent
 COPY --from=deps /app/node_modules/agent-base ./node_modules/agent-base
@@ -76,13 +103,11 @@ COPY --from=deps /app/node_modules/delayed-stream ./node_modules/delayed-stream
 COPY --from=deps /app/node_modules/asynckit ./node_modules/asynckit
 COPY --from=deps /app/node_modules/mime-types ./node_modules/mime-types
 COPY --from=deps /app/node_modules/mime-db ./node_modules/mime-db
-# Auth dependencies
 COPY --from=deps /app/node_modules/jws ./node_modules/jws
 COPY --from=deps /app/node_modules/jwa ./node_modules/jwa
 COPY --from=deps /app/node_modules/buffer-equal-constant-time ./node_modules/buffer-equal-constant-time
 COPY --from=deps /app/node_modules/ecdsa-sig-formatter ./node_modules/ecdsa-sig-formatter
 COPY --from=deps /app/node_modules/lru-cache ./node_modules/lru-cache
-# Utility dependencies
 COPY --from=deps /app/node_modules/uuid ./node_modules/uuid
 COPY --from=deps /app/node_modules/mime ./node_modules/mime
 COPY --from=deps /app/node_modules/is-stream ./node_modules/is-stream
@@ -93,15 +118,33 @@ COPY --from=deps /app/node_modules/ms ./node_modules/ms
 COPY --from=deps /app/node_modules/fast-xml-parser ./node_modules/fast-xml-parser
 COPY --from=deps /app/node_modules/strnum ./node_modules/strnum
 
-# Copy prompt download script
+# ============================================================================
+# Copy Python backend and dependencies
+# ============================================================================
+COPY --from=python-deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=python-deps /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+
+# Copy backend files
+COPY backend/app ./backend/app
+COPY backend/config ./backend/config
+COPY backend/leaps_ranker.py ./backend/
+COPY backend/credit_spread_screener.py ./backend/
+COPY backend/iron_condor.py ./backend/
+COPY backend/static ./backend/static
+COPY backend/templates ./backend/templates
+COPY backend/backtest ./backend/backtest
+
+# ============================================================================
+# Copy scripts and set permissions
+# ============================================================================
 COPY scripts/download-prompts.js /app/scripts/download-prompts.js
+RUN mkdir -p /app/prompts
 
-# Create prompts directory
-RUN mkdir -p /app/prompts && chown nextjs:nodejs /app/prompts
-
-# Copy entrypoint script and make executable
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
+
+# Set ownership
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -111,6 +154,8 @@ ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 ENV PROMPTS_DIR="/app/prompts"
 ENV GCS_PROMPTS_PATH=""
+ENV BACKEND_PORT=8081
+ENV OPTCHAIN_BACKEND_URL="http://localhost:8081"
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "server.js"]

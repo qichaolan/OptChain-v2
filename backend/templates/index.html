@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEAPS Ranker - Option Chain Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">Option Chain Analysis</div>
+                <nav class="main-nav">
+                    <a href="/" class="nav-btn active">LEAPS Ranker</a>
+                    <a href="/credit-spreads" class="nav-btn">Credit Spreads</a>
+                    <a href="/iron-condors" class="nav-btn">Iron Condors</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Page Header - Compact -->
+        <div class="page-header-compact">
+            <h1 class="page-title-compact">LEAPS Ranker</h1>
+            <p class="page-subtitle-compact">Long-term options (1–3 years) ranked by ease of reaching target and ROI potential.</p>
+        </div>
+
+        <!-- Controls Card with Inline Summary Cards -->
+        <section class="controls-card controls-card-with-summary" id="controls">
+            <div class="controls-summary-layout">
+                <!-- Left side: Form controls -->
+                <div class="simple-form">
+                    <div class="simple-form-row simple-form-row-inline">
+                        <!-- AI Market View Badge -->
+                        <div class="ai-badge-wrapper" id="aiScoreBox" role="region" aria-label="AI Market View" style="display: none;">
+                            <div class="ai-badge">
+                                <span class="ai-badge-label"><span class="ai-badge-icon">🤖</span> AI Market View</span>
+                                <span class="ai-badge-symbol" id="aiScoreSymbol">SPY</span>
+                                <span class="ai-badge-rating" id="aiScoreRating" role="status" aria-live="polite">-</span>
+                                <span class="ai-badge-meta">
+                                    <span class="ai-badge-date" id="aiScoreDate">-</span>
+                                    <button class="ai-badge-details" id="aiScoreDetailsToggle" aria-label="View details" title="View AI Market View details">Details</button>
+                                    <button class="ai-badge-refresh" id="aiScoreRefresh" aria-label="Refresh" title="Refresh score">↻</button>
+                                </span>
+                            </div>
+                            <input type="hidden" id="aiScoreValue" value="-">
+                        </div>
+                        <div class="simple-form-group">
+                            <label for="tickerSelect">Ticker</label>
+                            <select id="tickerSelect" class="select-lg">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="targetPct" value="50">
+                        <div class="simple-form-group">
+                            <label for="modeSelect">Scoring Mode</label>
+                            <select id="modeSelect" class="select-lg">
+                                <option value="high_prob">High Probability</option>
+                                <option value="high_convexity">High Convexity</option>
+                            </select>
+                        </div>
+                        <div class="simple-form-group simple-form-action">
+                            <button class="btn btn-primary btn-run" id="fetchBtn">
+                                <span class="btn-icon">&#9654;</span>
+                                Fetch LEAPS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right side: Summary Cards (4 columns inline) -->
+                <div class="summary-cards-inline" id="infoCards" style="display: none;">
+                    <div class="summary-card-mini">
+                        <div class="summary-card-mini-icon">📈</div>
+                        <div class="summary-card-mini-content">
+                            <div class="summary-card-mini-label">Symbol</div>
+                            <div class="summary-card-mini-value" id="symbolDisplay">-</div>
+                        </div>
+                    </div>
+                    <div class="summary-card-mini">
+                        <div class="summary-card-mini-icon">💰</div>
+                        <div class="summary-card-mini-content">
+                            <div class="summary-card-mini-label">Price</div>
+                            <div class="summary-card-mini-value" id="underlyingPrice">-</div>
+                        </div>
+                    </div>
+                    <div class="summary-card-mini">
+                        <div class="summary-card-mini-icon">🎯</div>
+                        <div class="summary-card-mini-content">
+                            <div class="summary-card-mini-label">Target</div>
+                            <div class="summary-card-mini-value" id="targetPrice">-</div>
+                        </div>
+                    </div>
+                    <div class="summary-card-mini summary-card-mini-highlight">
+                        <div class="summary-card-mini-icon">📊</div>
+                        <div class="summary-card-mini-content">
+                            <div class="summary-card-mini-label">Move</div>
+                            <div class="summary-card-mini-value positive" id="targetPctDisplay">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Market View Details Modal -->
+        <div class="ai-modal-overlay" id="aiScoreModalOverlay" style="display: none;">
+            <div class="ai-modal" role="dialog" aria-labelledby="aiModalTitle" aria-modal="true">
+                <div class="ai-modal-header">
+                    <h3 class="ai-modal-title" id="aiModalTitle">🤖 AI Market View</h3>
+                    <button class="ai-modal-close" id="aiScoreModalClose" aria-label="Close">&times;</button>
+                </div>
+                <div class="ai-modal-body">
+                    <div class="ai-modal-summary">
+                        <div class="ai-modal-score-row">
+                            <span class="ai-modal-symbol" id="aiModalSymbol">SPY</span>
+                            <span class="ai-modal-rating" id="aiModalRating">Strong Buy</span>
+                        </div>
+                        <p class="ai-modal-description">
+                            AI evaluates trend, momentum, and volume signals.<br>
+                            <strong>0</strong> = Strong Sell &rarr; <strong>1</strong> = Strong Buy
+                        </p>
+                    </div>
+                    <div class="ai-modal-details">
+                        <div class="ai-modal-detail-row">
+                            <span class="ai-modal-detail-label">Normalized Score</span>
+                            <span class="ai-modal-detail-value" id="aiScoreRaw">-</span>
+                        </div>
+                        <div class="ai-modal-detail-row">
+                            <span class="ai-modal-detail-label">Trained with</span>
+                            <span class="ai-modal-detail-value">30 years data</span>
+                        </div>
+                        <div class="ai-modal-detail-row">
+                            <span class="ai-modal-detail-label">Lookback</span>
+                            <span class="ai-modal-detail-value">365 days</span>
+                        </div>
+                        <div class="ai-modal-detail-row">
+                            <span class="ai-modal-detail-label">Normalization</span>
+                            <span class="ai-modal-detail-value">Z-Score</span>
+                        </div>
+                        <div class="ai-modal-detail-row">
+                            <span class="ai-modal-detail-label">Last Updated</span>
+                            <span class="ai-modal-detail-value" id="aiModalDate">-</span>
+                        </div>
+                    </div>
+                    <p class="ai-modal-note">
+                        Combines SMA, EMA, RSI, MACD, Bollinger Bands, and MFI for directional bias.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="error-banner" style="display: none;">
+            <span class="error-icon">!</span>
+            <span class="error-message"></span>
+        </div>
+
+        <!-- Main Content Grid - Table and Simulator side by side on desktop -->
+        <div class="page-layout" id="mainContent">
+            <!-- Results Section (Left side on desktop) -->
+            <section class="results-section" id="resultsSection">
+                <!-- Loading State -->
+                <div id="loadingState" class="loading-state" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Fetching LEAPS data...</div>
+                    <div class="loading-subtext">Analyzing options chains and computing scores</div>
+                </div>
+
+                <!-- Empty State - Compact -->
+                <div id="emptyState" class="empty-state empty-state-compact">
+                    <div class="empty-state-icon">📊</div>
+                    <h3 class="empty-state-title">Ready to Screen</h3>
+                    <p class="empty-state-text">Select a ticker and click <strong>"Fetch LEAPS"</strong> to view ranked options.</p>
+                    <div class="empty-state-tips">
+                        <div class="tip">
+                            <span class="tip-icon">💡</span>
+                            <span><strong>High Probability</strong>: Favors ITM/ATM options</span>
+                        </div>
+                        <div class="tip">
+                            <span class="tip-icon">💡</span>
+                            <span><strong>High Convexity</strong>: Favors OTM with leverage</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEAPS Results Table - High density -->
+                <div id="tableContainer" class="results-table-container" style="display: none;">
+                    <div class="results-table-header results-table-header-compact">
+                        <h3 class="results-table-title">
+                            <span class="ai-badge">AI</span> Top LEAPS
+                        </h3>
+                        <p class="results-table-subtitle">Ranked by ease score and ROI potential</p>
+                        <div class="simulator-hint-banner">
+                            <span class="simulator-hint-icon">👆</span>
+                            <span class="simulator-hint-text">Click any row to simulate</span>
+                        </div>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table class="data-table data-table-dense">
+                            <thead>
+                                <tr>
+                                    <th class="col-contract">Contract</th>
+                                    <th class="col-expiration">Exp</th>
+                                    <th class="col-strike">Strike</th>
+                                    <th class="col-premium">Premium</th>
+                                    <th class="col-cost hide-mobile">Cost</th>
+                                    <th class="col-payoff hide-mobile">Payoff</th>
+                                    <th class="col-roi">ROI%</th>
+                                    <th class="col-ease hide-mobile">Ease</th>
+                                    <th class="col-roi-score hide-mobile">ROI_S</th>
+                                    <th class="col-score">Score</th>
+                                    <th class="col-iv hide-mobile">IV</th>
+                                    <th class="col-oi hide-mobile">OI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contractsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- No Results State -->
+                <div id="noResultsState" class="empty-state" style="display: none;">
+                    <div class="empty-state-icon">🔍</div>
+                    <h3 class="empty-state-title">No LEAPS Found</h3>
+                    <p class="empty-state-text">No LEAPS options found for this ticker. Try a different symbol.</p>
+                </div>
+            </section>
+
+            <!-- ROI Simulator Section - Compact design -->
+            <section class="simulator-section simulator-section-compact" id="simulator" style="display: none;">
+                <div class="simulator-header simulator-header-compact">
+                    <div class="simulator-header-left">
+                        <h2 class="simulator-title simulator-title-compact">ROI Simulator</h2>
+                        <div class="ai-explainer-btn-container ai-explainer-btn-inline" id="aiExplainerBtnContainer"></div>
+                    </div>
+                    <button class="simulator-close" id="closeSimulator" aria-label="Close simulator">&times;</button>
+                </div>
+
+                <!-- Selected Contract Info - Compact grid -->
+                <div class="simulator-spread-info simulator-spread-info-compact" id="simSpreadInfo">
+                    <div class="spread-info-grid spread-info-grid-compact">
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Contract</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simContractDisplay">-</div>
+                        </div>
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Strike</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simStrikeDisplay">-</div>
+                        </div>
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Expiration</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simExpirationDisplay">-</div>
+                        </div>
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Premium</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simPremiumDisplay">-</div>
+                        </div>
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Cost</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simCostDisplay">-</div>
+                        </div>
+                        <div class="spread-info-item">
+                            <div class="spread-info-label">Underlying</div>
+                            <div class="spread-info-value spread-info-value-sm" id="simUnderlyingDisplay">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" id="simContracts" value="">
+                <input type="hidden" id="simUnderlying" value="0">
+                <input type="hidden" id="simTargetInput" value="">
+
+                <!-- ROI Results Grid - Compact -->
+                <div class="simulator-chart-container simulator-chart-container-compact">
+                    <h3 class="simulator-chart-title simulator-chart-title-compact">Projected ROI by Price Move</h3>
+                    <p class="simulator-chart-subtitle simulator-chart-subtitle-compact">Returns from +10% to +65% move in underlying</p>
+                    <div id="simResultsGrid" class="simulator-grid">
+                        <div class="simulator-result">
+                            <div class="simulator-result-label">Click a row to simulate</div>
+                            <div class="simulator-result-value">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="simContractsInfo" style="margin-top: 0.75rem;"></div>
+
+                <!-- AI Explainer Panel Container -->
+                <div id="aiExplainerPanelContainer"></div>
+
+                <!-- Loading state for simulator -->
+                <div id="simLoadingState" class="sim-loading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <span>Calculating ROI...</span>
+                </div>
+            </section>
+        </div><!-- End page-layout -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Option Chain Analysis - For educational purposes only. Not financial advice.</p>
+    </footer>
+
+    <script src="/static/js/ai-explainer.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -4,14 +4,17 @@
 // SSRF Protection: Whitelist allowed backend URLs
 // ============================================================================
 const ALLOWED_BACKENDS = [
-  'http://localhost:8080',
+  'http://localhost:8081',  // Internal backend (same container)
+  'http://127.0.0.1:8081',
+  'http://localhost:8080',  // Dev fallback
   'http://127.0.0.1:8080',
   // Add production backend URLs here
   process.env.OPTCHAIN_BACKEND_URL,
 ].filter(Boolean);
 
 function getValidatedBackendUrl() {
-  const backendUrl = process.env.OPTCHAIN_BACKEND_URL || 'http://localhost:8080';
+  // Default to port 8081 for the internal FastAPI backend
+  const backendUrl = process.env.OPTCHAIN_BACKEND_URL || 'http://localhost:8081';
 
   // In production, warn if backend URL is not in the whitelist
   // Don't throw - let the app start and fail gracefully on actual requests
@@ -96,9 +99,10 @@ const nextConfig = {
 
     return [
       // Proxy embedded pages (for iframe loading)
+      // Note: The backend serves "/" as the LEAPS page
       {
         source: '/embed/leaps',
-        destination: `${backendUrl}/leaps`,
+        destination: `${backendUrl}/`,
       },
       {
         source: '/embed/credit-spreads',
@@ -113,22 +117,59 @@ const nextConfig = {
         source: '/embed/static/:path*',
         destination: `${backendUrl}/static/:path*`,
       },
-      // Proxy existing API routes to FastAPI backend
+      // Also proxy direct static requests (for CSS/JS loaded by embedded pages)
       {
-        source: '/api/leaps/:path*',
-        destination: `${backendUrl}/api/leaps/:path*`,
+        source: '/static/:path*',
+        destination: `${backendUrl}/static/:path*`,
+      },
+      // Proxy LEAPS API routes
+      {
+        source: '/api/tickers',
+        destination: `${backendUrl}/api/tickers`,
       },
       {
-        source: '/api/credit-spreads/:path*',
-        destination: `${backendUrl}/api/credit-spreads/:path*`,
+        source: '/api/leaps',
+        destination: `${backendUrl}/api/leaps`,
       },
       {
-        source: '/api/iron-condors/:path*',
-        destination: `${backendUrl}/api/iron-condors/:path*`,
+        source: '/api/roi-simulator',
+        destination: `${backendUrl}/api/roi-simulator`,
       },
+      // Proxy Credit Spreads API routes
+      {
+        source: '/api/credit-spreads/tickers',
+        destination: `${backendUrl}/api/credit-spreads/tickers`,
+      },
+      {
+        source: '/api/credit-spreads',
+        destination: `${backendUrl}/api/credit-spreads`,
+      },
+      {
+        source: '/api/credit-spreads/simulate',
+        destination: `${backendUrl}/api/credit-spreads/simulate`,
+      },
+      // Proxy Iron Condors API routes
+      {
+        source: '/api/iron-condors',
+        destination: `${backendUrl}/api/iron-condors`,
+      },
+      {
+        source: '/api/iron-condors/:condor_id/payoff',
+        destination: `${backendUrl}/api/iron-condors/:condor_id/payoff`,
+      },
+      // Proxy AI routes
       {
         source: '/api/ai-explainer',
         destination: `${backendUrl}/api/ai-explainer`,
+      },
+      {
+        source: '/api/ai-score/:path*',
+        destination: `${backendUrl}/api/ai-score/:path*`,
+      },
+      // Backend health check
+      {
+        source: '/api/backend-health',
+        destination: `${backendUrl}/health`,
       },
     ];
   },
