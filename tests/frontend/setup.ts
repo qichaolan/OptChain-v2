@@ -88,4 +88,4 @@ console.error = (...args: unknown[]) => {
 
 // Environment variables for tests
 process.env.NEXT_PUBLIC_COPILOTKIT_ENABLED = 'true';
-process.env.NODE_ENV = 'test';
+// Note: NODE_ENV is already set to 'test' by Vitest automatically
