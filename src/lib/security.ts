@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { checkRateLimit, getClientIdentifier, RATE_LIMITS, RateLimitConfig } from './rate-limiter';
+import { checkRateLimit, checkGlobalGeminiLimit, getClientIdentifier, RATE_LIMITS, RateLimitConfig } from './rate-limiter';
 
 // ============================================================================
 // API Key Validation
@@ -78,19 +78,23 @@ export function validateApiKey(req: NextRequest): NextResponse | null {
 
 export interface RateLimitOptions {
   config?: RateLimitConfig;
+  hourlyConfig?: RateLimitConfig;
 }
 
 /**
  * Check rate limit for a request.
  * Returns null if allowed, error response if rate limited.
+ * Checks both per-minute and hourly limits for AI endpoints.
  */
 export function checkRequestRateLimit(
   req: NextRequest,
   options: RateLimitOptions = {}
 ): NextResponse | null {
   const config = options.config || RATE_LIMITS.ai;
+  const hourlyConfig = options.hourlyConfig || RATE_LIMITS.aiHourly;
   const identifier = getClientIdentifier(req.headers);
 
+  // Check per-minute limit
   const result = checkRateLimit(identifier, config);
 
   if (!result.success) {
@@ -106,6 +110,45 @@ export function checkRequestRateLimit(
           'X-RateLimit-Limit': String(result.limit),
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': String(Math.ceil(result.resetTime / 1000)),
+        },
+      }
+    );
+  }
+
+  // Check hourly limit
+  const hourlyResult = checkRateLimit(`${identifier}:hourly`, hourlyConfig);
+
+  if (!hourlyResult.success) {
+    return NextResponse.json(
+      {
+        error: 'Hourly rate limit exceeded. Please try again later.',
+        retryAfter: Math.ceil((hourlyResult.resetTime - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((hourlyResult.resetTime - Date.now()) / 1000)),
+          'X-RateLimit-Limit': String(hourlyResult.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(hourlyResult.resetTime / 1000)),
+        },
+      }
+    );
+  }
+
+  // Check global Gemini limit (across all users)
+  const globalResult = checkGlobalGeminiLimit();
+
+  if (!globalResult.success) {
+    return NextResponse.json(
+      {
+        error: 'AI service is temporarily at capacity. Please try again later.',
+        retryAfter: Math.ceil((globalResult.resetTime - Date.now()) / 1000),
+      },
+      {
+        status: 503,
+        headers: {
+          'Retry-After': String(Math.ceil((globalResult.resetTime - Date.now()) / 1000)),
         },
       }
     );

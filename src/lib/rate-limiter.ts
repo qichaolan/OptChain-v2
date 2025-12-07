@@ -89,11 +89,22 @@ export function checkRateLimit(
  * Default rate limit configurations (from centralized config)
  */
 export const RATE_LIMITS = {
-  // AI endpoints - more restrictive
+  // AI endpoints - more restrictive (per minute)
   ai: RATE_LIMIT_CONFIG.ai as RateLimitConfig,
+  // AI endpoints - hourly limit
+  aiHourly: RATE_LIMIT_CONFIG.aiHourly as RateLimitConfig,
+  // Global Gemini API limit (across all users)
+  geminiGlobal: RATE_LIMIT_CONFIG.geminiGlobal as RateLimitConfig,
   // General API - less restrictive
   api: RATE_LIMIT_CONFIG.api as RateLimitConfig,
 } as const;
+
+/**
+ * Check global Gemini API rate limit (across all users)
+ */
+export function checkGlobalGeminiLimit(): RateLimitResult {
+  return checkRateLimit('global:gemini', RATE_LIMITS.geminiGlobal);
+}
 
 /**
  * Get client identifier from request headers

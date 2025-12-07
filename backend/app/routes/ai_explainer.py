@@ -47,6 +47,7 @@ def _get_client_ip(request: Request) -> str:
 
 @router.post("/ai-explainer", response_model=AiExplainerResponse)
 @limiter.limit("30/minute")
+@limiter.limit("180/hour")
 async def get_ai_explanation(request: Request, explainer_request: AiExplainerRequest):
     """
     Get AI-powered explanation for simulation results.

@@ -33,6 +33,18 @@ export const RATE_LIMIT_CONFIG = {
     windowSec: parseInt(process.env.RATE_LIMIT_AI_WINDOW || '60', 10),
   },
 
+  /** AI endpoints - hourly limit */
+  aiHourly: {
+    maxRequests: parseInt(process.env.RATE_LIMIT_AI_HOURLY_MAX || '60', 10),
+    windowSec: parseInt(process.env.RATE_LIMIT_AI_HOURLY_WINDOW || '3600', 10),
+  },
+
+  /** Global Gemini API limit (across all users) */
+  geminiGlobal: {
+    maxRequests: parseInt(process.env.GEMINI_GLOBAL_HOURLY_LIMIT || '1000', 10),
+    windowSec: 3600,
+  },
+
   /** General API endpoints - less restrictive */
   api: {
     maxRequests: parseInt(process.env.RATE_LIMIT_API_MAX || '100', 10),

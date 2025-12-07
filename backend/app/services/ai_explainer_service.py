@@ -30,6 +30,56 @@ AI_EXPLAINER_ENABLED = os.environ.get("AI_EXPLAINER_ENABLED", "true").lower() ==
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
+# Global rate limit for Gemini API calls (across all users)
+GEMINI_GLOBAL_HOURLY_LIMIT = int(os.environ.get("GEMINI_GLOBAL_HOURLY_LIMIT", "1000"))
+
+
+# =============================================================================
+# Global Rate Limiter
+# =============================================================================
+
+class GlobalRateLimiter:
+    """Simple in-memory global rate limiter for Gemini API calls."""
+
+    def __init__(self, max_requests: int, window_seconds: int = 3600):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests: list[float] = []
+
+    def _cleanup_old_requests(self) -> None:
+        """Remove requests outside the current window."""
+        cutoff = time.time() - self.window_seconds
+        self.requests = [t for t in self.requests if t > cutoff]
+
+    def is_allowed(self) -> bool:
+        """Check if a new request is allowed."""
+        self._cleanup_old_requests()
+        return len(self.requests) < self.max_requests
+
+    def record_request(self) -> None:
+        """Record a new request."""
+        self.requests.append(time.time())
+
+    def get_remaining(self) -> int:
+        """Get remaining requests in current window."""
+        self._cleanup_old_requests()
+        return max(0, self.max_requests - len(self.requests))
+
+    def get_reset_time(self) -> float:
+        """Get time until oldest request expires (in seconds)."""
+        self._cleanup_old_requests()
+        if not self.requests:
+            return 0
+        oldest = min(self.requests)
+        return max(0, (oldest + self.window_seconds) - time.time())
+
+
+# Global rate limiter instance (shared across all requests)
+_gemini_global_limiter = GlobalRateLimiter(
+    max_requests=GEMINI_GLOBAL_HOURLY_LIMIT,
+    window_seconds=3600
+)
+
 
 def _get_config_path() -> Path:
     """Get path to Gemini config file."""
@@ -388,8 +438,20 @@ class GeminiClient:
 
         Raises:
             TimeoutError: If request times out
-            RuntimeError: If Gemini API fails
+            RuntimeError: If Gemini API fails or global rate limit exceeded
         """
+        # Check global rate limit (across all users)
+        if not _gemini_global_limiter.is_allowed():
+            remaining = _gemini_global_limiter.get_remaining()
+            reset_time = _gemini_global_limiter.get_reset_time()
+            logger.warning(
+                f"Global Gemini rate limit exceeded. "
+                f"Remaining: {remaining}, Reset in: {reset_time:.0f}s"
+            )
+            raise RuntimeError(
+                f"AI service is temporarily at capacity. Please try again in {int(reset_time / 60)} minutes."
+            )
+
         model = self._get_model()
         request_config = self.config.get("request", {})
         timeout = timeout_seconds or request_config.get("timeout_seconds", 30)
@@ -403,6 +465,9 @@ class GeminiClient:
         for attempt in range(max_retries + 1):
             try:
                 start_time = time.time()
+
+                # Record this request against global limit
+                _gemini_global_limiter.record_request()
 
                 # Generate response
                 response = model.generate_content(
