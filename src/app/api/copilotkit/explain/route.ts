@@ -9,6 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiModel } from '@/lib/gemini';
 import { loadPrompt } from '@/lib/prompts';
 import { safeValidateExplainRequest } from '@/lib/validation';
+import {
+  checkRequestRateLimit,
+  validateApiKey,
+  generateRequestId,
+  logRequest,
+} from '@/lib/security';
 
 // ============================================================================
 // Response Types
@@ -144,12 +150,30 @@ function parseGeminiResponse(responseText: string): AiResponse {
 // ============================================================================
 
 export async function POST(req: NextRequest) {
+  const requestId = generateRequestId();
+  const startTime = Date.now();
+
   try {
+    // Security: Check rate limit first
+    const rateLimitError = checkRequestRateLimit(req);
+    if (rateLimitError) {
+      logRequest(req, requestId, 429, startTime);
+      return rateLimitError;
+    }
+
+    // Security: Validate API key / origin
+    const authError = validateApiKey(req);
+    if (authError) {
+      logRequest(req, requestId, 401, startTime);
+      return authError;
+    }
+
     const body = await req.json();
 
     // Validate request with Zod
     const validation = safeValidateExplainRequest(body);
     if (!validation.success) {
+      logRequest(req, requestId, 400, startTime);
       return NextResponse.json(
         { success: false, error: `Validation error: ${validation.error}` },
         { status: 400 }
@@ -191,6 +215,8 @@ export async function POST(req: NextRequest) {
       riskManagement: parsedResponse.risk_management,
     };
 
+    logRequest(req, requestId, 200, startTime);
+
     return NextResponse.json({
       success: true,
       pageId,
@@ -203,6 +229,8 @@ export async function POST(req: NextRequest) {
     // Log only the error message, not the full error object (avoid leaking sensitive info)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     console.error('AI Explainer API Error:', errorMessage);
+
+    logRequest(req, requestId, 500, startTime);
 
     return NextResponse.json(
       {

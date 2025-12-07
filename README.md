@@ -1,6 +1,7 @@
 # OptChain v2 - CopilotKit Integration
 
-This is an experimental CopilotKit-enabled version of the OptionChain web application. It is a AI-powered stock option tools using CopilotKit and Google Gemini.
+This is an experimental CopilotKit-enabled version of the OptionChain web application (https://optchain.app/
+). It is an AI-powered stock options analysis tool built with CopilotKit and Google Gemini. For questions or feedback, please contact: info@optchain.app
 
 ## Architecture
 

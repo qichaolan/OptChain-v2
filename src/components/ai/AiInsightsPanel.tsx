@@ -7,10 +7,11 @@
  * Renders different sections based on the page type.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAiExplainer } from '@/hooks';
 import { useOptionChain } from '@/contexts';
 import { AiExplainerContent, KeyInsight, RiskItem, WatchItem } from '@/types/ai-response';
+import { sanitizeAiResponse } from '@/lib/sanitize';
 
 // ============================================================================
 // Sub-components
@@ -352,6 +353,12 @@ export function AiInsightsPanel({ className = '' }: AiInsightsPanelProps) {
   const { isLoading, error, result, analyze, fromCache } = useAiExplainer();
   const { isAiPanelOpen, closeAiPanel, currentMetadata } = useOptionChain();
 
+  // Sanitize AI response to prevent XSS attacks
+  const sanitizedResult = useMemo(() => {
+    if (!result) return null;
+    return sanitizeAiResponse(result) as AiExplainerContent;
+  }, [result]);
+
   if (!isAiPanelOpen) {
     return null;
   }
@@ -395,8 +402,8 @@ export function AiInsightsPanel({ className = '' }: AiInsightsPanelProps) {
           <LoadingState />
         ) : error ? (
           <ErrorState error={error} onRetry={analyze} />
-        ) : result ? (
-          <ContentRenderer content={result} />
+        ) : sanitizedResult ? (
+          <ContentRenderer content={sanitizedResult} />
         ) : (
           <div className="text-center py-8">
             <button

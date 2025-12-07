@@ -74,7 +74,16 @@ async function downloadPrompts() {
 
     console.log(`Prompts downloaded successfully. (${downloadCount} files)`);
   } catch (error) {
-    console.error('Failed to download prompts from GCS:', error.message);
+    // Log only error code in production to avoid leaking sensitive paths
+    const errorCode = error.code || 'UNKNOWN';
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+      console.error(`Failed to download prompts from GCS: ${errorCode}`);
+    } else {
+      // In development, show full error for debugging
+      console.error('Failed to download prompts from GCS:', error.message);
+    }
     console.log('Using default prompts...');
   }
 }

@@ -6,20 +6,32 @@
  */
 
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { GEMINI_CONFIG } from '@/config/ai.config';
 
 // ============================================================================
-// Configuration
+// Configuration (from centralized config)
 // ============================================================================
 
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp';
+const MODEL_NAME = GEMINI_CONFIG.modelName;
 
-export const MODEL_CONFIG = {
-  temperature: 0.2,
-  maxOutputTokens: 10000,
-  topP: 0.8,
-  topK: 40,
-} as const;
+export const MODEL_CONFIG = GEMINI_CONFIG.generation;
+
+// ============================================================================
+// API Key Getter (lazy, avoids module-level exposure in stack traces)
+// ============================================================================
+
+/**
+ * Get Gemini API key lazily.
+ * Throws a generic error message to avoid exposing key names in stack traces.
+ */
+function getApiKey(): string {
+  const key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) {
+    // Generic error message - don't reveal which env vars we're looking for
+    throw new Error('AI service not configured');
+  }
+  return key;
+}
 
 // ============================================================================
 // Client Singleton
@@ -28,12 +40,9 @@ export const MODEL_CONFIG = {
 let geminiClient: GoogleGenerativeAI | null = null;
 
 export function getGeminiClient(): GoogleGenerativeAI {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
-  }
-
   if (!geminiClient) {
-    geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const apiKey = getApiKey();
+    geminiClient = new GoogleGenerativeAI(apiKey);
   }
 
   return geminiClient;
