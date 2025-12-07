@@ -45,8 +45,9 @@ COPY scripts/download-prompts.js /app/scripts/download-prompts.js
 # Create prompts directory
 RUN mkdir -p /app/prompts && chown nextjs:nodejs /app/prompts
 
-# Copy entrypoint script
-COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
+# Copy entrypoint script and make executable (without BuildKit)
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod 755 /app/entrypoint.sh
 
 USER nextjs
 
