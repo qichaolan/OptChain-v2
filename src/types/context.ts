@@ -38,8 +38,8 @@ export interface LeapsContract {
   contractSymbol: string;
   expiration: string;
   strike: number;
-  premium: float;
-  cost: float;
+  premium: number;
+  cost: number;
   impliedVolatility?: number;
   openInterest?: number;
   delta?: number;
