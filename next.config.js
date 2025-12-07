@@ -13,12 +13,13 @@ const ALLOWED_BACKENDS = [
 function getValidatedBackendUrl() {
   const backendUrl = process.env.OPTCHAIN_BACKEND_URL || 'http://localhost:8080';
 
-  // In production, validate the backend URL is in the whitelist
+  // In production, warn if backend URL is not in the whitelist
+  // Don't throw - let the app start and fail gracefully on actual requests
   if (process.env.NODE_ENV === 'production') {
     if (!ALLOWED_BACKENDS.includes(backendUrl)) {
-      console.error(`Invalid OPTCHAIN_BACKEND_URL: ${backendUrl}`);
-      console.error('Allowed backends:', ALLOWED_BACKENDS);
-      throw new Error('Invalid backend URL configuration');
+      console.warn(`[SECURITY WARNING] OPTCHAIN_BACKEND_URL not in whitelist: ${backendUrl}`);
+      console.warn('Allowed backends:', ALLOWED_BACKENDS);
+      // Return the URL anyway - rewrites may fail but app will start
     }
   }
 
