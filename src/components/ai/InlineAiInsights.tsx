@@ -746,17 +746,17 @@ function LeapsSummary({ metadata }: ContractSummaryProps) {
           SUB-HEADER BAR: Exp | DTE | Strike
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Exp</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{expiration}</div>
+          <div className="text-xs font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatExpirationDate(expiration)}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">DTE</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">{calculatedDTE ?? '-'}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Strike</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{formatCurrency(strike)}</div>
+          <div className="text-sm font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatCurrency(strike)}</div>
         </div>
       </div>
 
@@ -928,15 +928,15 @@ function CreditSpreadSummary({ metadata }: ContractSummaryProps) {
           SUB-HEADER BAR: Exp | DTE | Width
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Exp</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{expiration}</div>
+          <div className="text-xs font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatExpirationDate(expiration)}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">DTE</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">{dte ?? '-'}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Width</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">${width}</div>
         </div>
@@ -1121,17 +1121,17 @@ function ChainAnalysisSummary({ metadata }: ContractSummaryProps) {
 
       {/* SUB-HEADER BAR: Exp | DTE | Strike */}
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Exp</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{expiration}</div>
+          <div className="text-xs font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatExpirationDate(expiration)}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">DTE</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">{dte ?? '-'}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Strike</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{formatCurrency(strike)}</div>
+          <div className="text-sm font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatCurrency(strike)}</div>
         </div>
       </div>
 
@@ -1287,11 +1287,11 @@ function ChainAnalysisSummary({ metadata }: ContractSummaryProps) {
                 <div className="mt-1 text-[10px] text-center">
                   {totalCallPremium > totalPutPremium ? (
                     <span className="text-green-600">
-                      Calls +{formatCurrency(totalCallPremium - totalPutPremium)} ({((totalCallPremium - totalPutPremium) / totalPutPremium * 100).toFixed(0)}% higher)
+                      Calls +{formatCurrency(totalCallPremium - totalPutPremium)}{totalPutPremium > 0 ? ` (${((totalCallPremium - totalPutPremium) / totalPutPremium * 100).toFixed(0)}% higher)` : ''}
                     </span>
                   ) : totalPutPremium > totalCallPremium ? (
                     <span className="text-red-600">
-                      Puts +{formatCurrency(totalPutPremium - totalCallPremium)} ({((totalPutPremium - totalCallPremium) / totalCallPremium * 100).toFixed(0)}% higher)
+                      Puts +{formatCurrency(totalPutPremium - totalCallPremium)}{totalCallPremium > 0 ? ` (${((totalPutPremium - totalCallPremium) / totalCallPremium * 100).toFixed(0)}% higher)` : ''}
                     </span>
                   ) : (
                     <span className="text-gray-500">Premiums equal</span>
@@ -1483,15 +1483,15 @@ function IronCondorSummary({ metadata }: ContractSummaryProps) {
           ROW 1: Exp | DTE | Width
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Exp</div>
-          <div className="text-sm font-semibold text-gray-800 mt-0.5">{expiration}</div>
+          <div className="text-xs font-semibold text-gray-800 mt-0.5 whitespace-nowrap">{formatExpirationDate(expiration)}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">DTE</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">{dte ?? '-'}</div>
         </div>
-        <div className="px-4 py-2.5 text-center">
+        <div className="px-2 py-2.5 text-center">
           <div className="text-[10px] text-gray-500 uppercase tracking-wide">Width</div>
           <div className="text-sm font-semibold text-gray-800 mt-0.5">${width?.toFixed(0) || '-'}</div>
         </div>
