@@ -170,12 +170,14 @@ class IronCondorSummary(BaseModel):
     long_put: float = Field(..., description="Long put strike")
     short_call: float = Field(..., description="Short call strike")
     long_call: float = Field(..., description="Long call strike")
+    width: float = Field(..., ge=0, description="Width of spread wings ($)")
     total_credit: float = Field(..., ge=0, description="Total credit per share ($)")
     max_profit: float = Field(..., ge=0, description="Max profit per contract ($)")
     max_loss: float = Field(..., ge=0, description="Max loss per contract ($)")
     risk_reward_ratio: float = Field(
-        ..., ge=0, description="Risk/reward ratio (max_profit / max_loss)"
+        ..., ge=0, description="Risk/reward ratio (max_loss / max_profit)"
     )
+    ror: float = Field(..., ge=0, description="Return on Risk (max_profit / max_loss)")
     combined_pop: float = Field(
         ..., ge=0, le=1, description="Combined probability of profit (0-1)"
     )
@@ -184,6 +186,14 @@ class IronCondorSummary(BaseModel):
     )
     breakeven_low: float = Field(..., description="Lower breakeven price")
     breakeven_high: float = Field(..., description="Upper breakeven price")
+    # Greeks
+    short_put_delta: float = Field(..., description="Short put delta (absolute)")
+    short_call_delta: float = Field(..., description="Short call delta (absolute)")
+    # Distance metrics (percentages, positive = OTM)
+    dist_to_short_put: float = Field(..., description="Distance from underlying to short put (%)")
+    dist_to_short_call: float = Field(..., description="Distance from underlying to short call (%)")
+    dist_to_lower_be: float = Field(..., description="Distance to lower breakeven (%)")
+    dist_to_upper_be: float = Field(..., description="Distance to upper breakeven (%)")
 
 
 class IronCondorListResponse(BaseModel):
@@ -276,6 +286,21 @@ def _safe_int(val, default: int = 0) -> int:
 
 def _condor_to_summary(condor: IronCondor, condor_id: str) -> IronCondorSummary:
     """Convert IronCondor object to API summary model."""
+    # Calculate ROR (Return on Risk) = max_profit / max_loss
+    ror = round(condor.roc_raw, 4) if condor.max_loss_dollars > 0 else 0.0
+
+    # Calculate risk/reward ratio (inverse of ROR)
+    risk_reward_ratio = round(1 / condor.roc_raw, 2) if condor.roc_raw > 0 else 0.0
+
+    # Width is the max of the two wing widths
+    width = max(condor.put_width, condor.call_width)
+
+    # Distance to short strikes (positive = OTM = good)
+    # For put: underlying is above short put, so positive is good
+    dist_to_short_put = round((condor.underlying_price - condor.short_put_strike) / condor.underlying_price, 4) if condor.underlying_price > 0 else 0.0
+    # For call: underlying is below short call, so positive is good
+    dist_to_short_call = round((condor.short_call_strike - condor.underlying_price) / condor.underlying_price, 4) if condor.underlying_price > 0 else 0.0
+
     return IronCondorSummary(
         id=condor_id,
         symbol=condor.underlying,
@@ -285,16 +310,22 @@ def _condor_to_summary(condor: IronCondor, condor_id: str) -> IronCondorSummary:
         long_put=condor.long_put_strike,
         short_call=condor.short_call_strike,
         long_call=condor.long_call_strike,
+        width=round(width, 2),
         total_credit=round(condor.total_credit, 2),
         max_profit=round(condor.max_profit_dollars, 2),
         max_loss=round(condor.max_loss_dollars, 2),
-        risk_reward_ratio=_compute_risk_reward_ratio(
-            condor.max_profit_dollars, condor.max_loss_dollars
-        ),
+        risk_reward_ratio=risk_reward_ratio,
+        ror=ror,
         combined_pop=round(condor.pop, 4),
         combined_score=round(condor.total_score, 4),
         breakeven_low=round(condor.breakeven_low, 2),
         breakeven_high=round(condor.breakeven_high, 2),
+        short_put_delta=round(abs(condor.put_leg.spread.short_delta), 4),
+        short_call_delta=round(abs(condor.call_leg.spread.short_delta), 4),
+        dist_to_short_put=dist_to_short_put,
+        dist_to_short_call=dist_to_short_call,
+        dist_to_lower_be=round(condor.distance_to_BE_low_pct, 4),
+        dist_to_upper_be=round(condor.distance_to_BE_high_pct, 4),
     )
 
 

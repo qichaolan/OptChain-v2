@@ -50,11 +50,10 @@ let state = {
     error: null,
     sortColumn: 'total_score',
     sortDirection: 'desc',
-    // Simulator state
+    // Selected spread state (for postMessage to parent)
     selectedSpread: null,
     simulatorData: null,
     underlyingPrice: 0,
-    payoffTableExpanded: false,  // Whether P/L table is expanded
 };
 
 // ============================================
@@ -94,35 +93,15 @@ const elements = {
     noResultsState: document.getElementById('noResultsState'),
     errorDisplay: document.getElementById('errorDisplay'),
     legendSection: document.getElementById('legendSection'),
-
-    // Simulator elements
-    spreadSimulator: document.getElementById('spreadSimulator'),
-    closeSimulator: document.getElementById('closeSimulator'),
-    simSymbol: document.getElementById('simSymbol'),
-    simType: document.getElementById('simType'),
-    simExpiration: document.getElementById('simExpiration'),
-    simShortStrike: document.getElementById('simShortStrike'),
-    simLongStrike: document.getElementById('simLongStrike'),
-    simNetCredit: document.getElementById('simNetCredit'),
-    simMaxGain: document.getElementById('simMaxGain'),
-    simMaxLoss: document.getElementById('simMaxLoss'),
-    simBreakeven: document.getElementById('simBreakeven'),
-    simBreakevenPct: document.getElementById('simBreakevenPct'),
-    simTableBody: document.getElementById('simTableBody'),
-    simLoadingState: document.getElementById('simLoadingState'),
-    simProfitRange: document.getElementById('simProfitRange'),
-    simLegsText: document.getElementById('simLegsText'),
-    togglePayoffTable: document.getElementById('togglePayoffTable'),
 };
 
 // ============================================
-// AI EXPLAINER
+// METADATA FOR PARENT WINDOW
 // ============================================
 
-let aiExplainerController = null;
-
 /**
- * Get metadata for AI Explainer based on current simulation state
+ * Get metadata for AI analysis (used by parent window)
+ * Uses camelCase keys to match TypeScript validation schema
  */
 function getAiExplainerMetadata() {
     if (!state.selectedSpread || !state.simulatorData) {
@@ -132,43 +111,30 @@ function getAiExplainerMetadata() {
     const spread = state.selectedSpread;
     const simData = state.simulatorData;
 
+    // Calculate width (distance between strikes)
+    const width = Math.abs(spread.short_strike - spread.long_strike);
+
     return {
         symbol: spread.symbol,
-        spread_type: spread.spread_type,
+        spreadType: spread.spread_type,
         expiration: spread.expiration,
-        short_strike: spread.short_strike,
-        long_strike: spread.long_strike,
-        net_credit: spread.credit,
-        underlying_price: state.underlyingPrice,
+        shortStrike: spread.short_strike,
+        longStrike: spread.long_strike,
+        width: width,
+        netCredit: spread.credit,
+        underlyingPrice: state.underlyingPrice,
         dte: spread.dte,
-        short_delta: spread.short_delta,
-        prob_profit: spread.prob_profit,
-        max_gain: simData.summary.max_gain,
-        max_loss: simData.summary.max_loss,
-        breakeven_price: simData.summary.breakeven_price,
-        breakeven_pct: simData.summary.breakeven_pct,
+        shortDelta: spread.short_delta,
+        probProfit: spread.prob_profit,
+        maxGain: simData.summary.max_gain,
+        maxLoss: simData.summary.max_loss,
+        breakeven: simData.summary.breakeven_price,
+        breakevenPct: simData.summary.breakeven_pct,
         roc: spread.roc,
         iv: spread.iv,
         ivp: spread.ivp,
+        netTheta: spread.net_theta,
     };
-}
-
-/**
- * Initialize AI Explainer controller
- */
-function initAiExplainer() {
-    if (typeof AiExplainerController === 'undefined') {
-        console.warn('AI Explainer not available');
-        return;
-    }
-
-    aiExplainerController = new AiExplainerController({
-        pageId: 'credit_spread_screener',
-        contextType: 'spread_simulator',
-        getMetadata: getAiExplainerMetadata,
-        buttonContainerId: 'aiExplainerBtnContainer',
-        panelContainerId: 'aiExplainerPanelContainer',
-    });
 }
 
 // ============================================
@@ -177,8 +143,15 @@ function initAiExplainer() {
 
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    initAiExplainer();
     runScreener(); // Auto-scan on page load
+
+    // Initialize AI tooltips for metric explanations
+    if (typeof initAiTooltips === 'function') {
+        initAiTooltips({
+            pageId: 'credit_spread_screener',
+            getMetadata: () => state.selectedSpread ? getSimulatorMetadata() : null,
+        });
+    }
 });
 
 // Setup all event listeners
@@ -202,16 +175,6 @@ function setupEventListeners() {
             handleSort(sortKey, tableType);
         });
     });
-
-    // Close simulator button
-    if (elements.closeSimulator) {
-        elements.closeSimulator.addEventListener('click', closeSimulator);
-    }
-
-    // Toggle P/L table expand/collapse
-    if (elements.togglePayoffTable) {
-        elements.togglePayoffTable.addEventListener('click', togglePayoffTableExpand);
-    }
 
     // Re-render on window resize for mobile/desktop switch
     let resizeTimeout;
@@ -297,8 +260,8 @@ function updateUI(data) {
     state.ccsSpreads = data.spreads.filter(s => s.spread_type === 'CCS');
     state.underlyingPrice = data.underlying_price;
 
-    // Close simulator when new data is loaded
-    closeSimulator();
+    // Clear selection when new data is loaded
+    clearSelection();
 
     // Update summary cards
     elements.symbolDisplay.textContent = data.symbol;
@@ -382,15 +345,15 @@ function renderTable(spreads, tbody) {
     tbody.innerHTML = top20.map((s, idx) => `
         <tr data-spread-idx="${idx}" data-spread-type="${s.spread_type}" class="clickable-row" title="Click to simulate P/L">
             <td class="col-exp">${escapeHtml(s.expiration)}</td>
-            <td class="col-dte">${s.dte}</td>
+            <td class="col-dte"><span data-ai-metric="dte" data-ai-value="${s.dte}" data-ai-label="Days to Expiration">${s.dte}</span></td>
             <td class="col-strike">${formatCurrency(s.short_strike, 0)}</td>
             <td class="col-strike">${formatCurrency(s.long_strike, 0)}</td>
             <td class="col-money">${formatCurrency(s.credit, 2)}</td>
-            <td class="col-pct ${s.roc >= 0.30 ? 'positive' : ''}">${formatPercent(s.roc, 1)}</td>
-            <td class="col-delta hide-mobile">${formatNumber(s.short_delta, 2)}${s.delta_estimated ? '<span class="delta-estimated">*</span>' : ''}</td>
-            <td class="col-pct ${s.prob_profit >= 0.75 ? 'positive' : ''}">${formatPercent(s.prob_profit, 0)}</td>
-            <td class="col-money hide-mobile">${formatCurrency(s.break_even, 2)}</td>
-            <td class="col-score"><span class="score-badge ${getScoreClass(s.total_score)}">${formatNumber(s.total_score, 2)}</span></td>
+            <td class="col-pct ${s.roc >= 0.30 ? 'positive' : ''}"><span data-ai-metric="roc" data-ai-value="${s.roc}" data-ai-label="Return on Capital">${formatPercent(s.roc, 1)}</span></td>
+            <td class="col-delta hide-mobile"><span data-ai-metric="delta" data-ai-value="${s.short_delta}" data-ai-label="Short Delta">${formatNumber(s.short_delta, 2)}${s.delta_estimated ? '<span class="delta-estimated">*</span>' : ''}</span></td>
+            <td class="col-pct ${s.prob_profit >= 0.75 ? 'positive' : ''}"><span data-ai-metric="pop" data-ai-value="${s.prob_profit}" data-ai-label="Probability of Profit">${formatPercent(s.prob_profit, 0)}</span></td>
+            <td class="col-money hide-mobile"><span data-ai-metric="breakeven" data-ai-value="${s.break_even}" data-ai-label="Break-Even Price">${formatCurrency(s.break_even, 2)}</span></td>
+            <td class="col-score"><span class="score-badge ${getScoreClass(s.total_score)}" data-ai-metric="score" data-ai-value="${s.total_score}" data-ai-label="Total Score">${formatNumber(s.total_score, 2)}</span></td>
         </tr>
     `).join('');
 
@@ -424,27 +387,27 @@ function renderMobileCards(spreads, container, type) {
             <div class="mobile-card-metrics">
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">Credit</div>
-                    <div class="mobile-metric-value">${formatCurrency(s.credit, 2)}</div>
+                    <div class="mobile-metric-value" data-ai-metric="credit" data-ai-value="${s.credit}" data-ai-label="Net Credit">${formatCurrency(s.credit, 2)}</div>
                 </div>
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">ROC</div>
-                    <div class="mobile-metric-value ${s.roc >= 0.30 ? 'positive' : ''}">${formatPercent(s.roc, 1)}</div>
+                    <div class="mobile-metric-value ${s.roc >= 0.30 ? 'positive' : ''}" data-ai-metric="roc" data-ai-value="${s.roc}" data-ai-label="Return on Capital">${formatPercent(s.roc, 1)}</div>
                 </div>
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">Win%</div>
-                    <div class="mobile-metric-value ${s.prob_profit >= 0.75 ? 'positive' : ''}">${formatPercent(s.prob_profit, 0)}</div>
+                    <div class="mobile-metric-value ${s.prob_profit >= 0.75 ? 'positive' : ''}" data-ai-metric="pop" data-ai-value="${s.prob_profit}" data-ai-label="Probability of Profit">${formatPercent(s.prob_profit, 0)}</div>
                 </div>
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">Delta</div>
-                    <div class="mobile-metric-value">${formatNumber(s.short_delta, 2)}${s.delta_estimated ? '*' : ''}</div>
+                    <div class="mobile-metric-value" data-ai-metric="delta" data-ai-value="${s.short_delta}" data-ai-label="Short Delta">${formatNumber(s.short_delta, 2)}${s.delta_estimated ? '*' : ''}</div>
                 </div>
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">Break-Even</div>
-                    <div class="mobile-metric-value">${formatCurrency(s.break_even, 2)}</div>
+                    <div class="mobile-metric-value" data-ai-metric="breakeven" data-ai-value="${s.break_even}" data-ai-label="Break-Even Price">${formatCurrency(s.break_even, 2)}</div>
                 </div>
                 <div class="mobile-metric">
                     <div class="mobile-metric-label">Max Loss</div>
-                    <div class="mobile-metric-value">${formatCurrency(s.max_loss, 2)}</div>
+                    <div class="mobile-metric-value" data-ai-metric="max_loss" data-ai-value="${s.max_loss}" data-ai-label="Maximum Loss">${formatCurrency(s.max_loss, 2)}</div>
                 </div>
             </div>
             <div class="mobile-card-action">
@@ -590,7 +553,7 @@ function hideError() {
 }
 
 // ============================================
-// CREDIT SPREAD SIMULATOR
+// CREDIT SPREAD SELECTION (sends data to parent via postMessage)
 // ============================================
 
 // Select a spread for simulation
@@ -606,52 +569,23 @@ function selectSpreadForSimulation(spread, element) {
     // Store selected spread
     state.selectedSpread = spread;
 
-    // Run simulation
-    runSpreadSimulation(spread);
+    // Fetch simulation data and send to parent
+    fetchAndSendSpreadData(spread);
 }
 
-// Close the simulator
-function closeSimulator() {
-    if (elements.spreadSimulator) {
-        elements.spreadSimulator.style.display = 'none';
-    }
+// Clear selection state
+function clearSelection() {
     state.selectedSpread = null;
     state.simulatorData = null;
-    state.payoffTableExpanded = false;  // Reset to collapsed when closing
 
     // Remove selection highlighting
     document.querySelectorAll('.selected-for-sim').forEach(el => {
         el.classList.remove('selected-for-sim');
     });
-
-    // Clear AI Explainer
-    if (aiExplainerController) {
-        aiExplainerController.clearExplanation();
-    }
 }
 
-// Run simulation for a spread
-async function runSpreadSimulation(spread) {
-    // Clear AI Explainer panel when selecting a new spread
-    if (aiExplainerController) {
-        aiExplainerController.clearExplanation();
-    }
-
-    // Reset table to collapsed state when selecting a new spread
-    state.payoffTableExpanded = false;
-
-    // Show simulator with loading state
-    elements.spreadSimulator.style.display = 'block';
-    elements.simLoadingState.style.display = 'flex';
-
-    // Update spread info display
-    elements.simSymbol.textContent = spread.symbol;
-    elements.simType.textContent = spread.spread_type === 'PCS' ? 'Put Credit Spread (Bullish)' : 'Call Credit Spread (Bearish)';
-    elements.simExpiration.textContent = spread.expiration;
-    elements.simShortStrike.textContent = formatCurrency(spread.short_strike, 0);
-    elements.simLongStrike.textContent = formatCurrency(spread.long_strike, 0);
-    elements.simNetCredit.textContent = formatCurrency(spread.credit, 2);
-
+// Fetch simulation data and send to parent window via postMessage
+async function fetchAndSendSpreadData(spread) {
     try {
         const response = await fetch('/api/credit-spreads/simulate', {
             method: 'POST',
@@ -675,116 +609,21 @@ async function runSpreadSimulation(spread) {
         const data = await response.json();
         state.simulatorData = data;
 
-        // Update action summary - compact two-line format
-        const breakevenFormatted = formatCurrency(data.summary.breakeven_price, 2);
-        const shortStrikeFormatted = formatCurrency(spread.short_strike, 0);
-        const longStrikeFormatted = formatCurrency(spread.long_strike, 0);
-        const optionType = spread.spread_type === 'PCS' ? 'puts' : 'calls';
-
-        if (elements.simProfitRange) {
-            if (spread.spread_type === 'PCS') {
-                elements.simProfitRange.textContent = `Above ${breakevenFormatted}`;
-            } else {
-                elements.simProfitRange.textContent = `Below ${breakevenFormatted}`;
+        // Send simulation data to parent window (Next.js wrapper)
+        if (window.parent !== window) {
+            const metadata = getAiExplainerMetadata();
+            if (metadata) {
+                console.log('[CreditSpreads Backend] Sending postMessage with metadata:', metadata);
+                window.parent.postMessage({
+                    type: 'CREDIT_SPREAD_SIMULATION_UPDATE',
+                    payload: metadata,
+                }, '*');
+                console.log('[CreditSpreads Backend] postMessage sent');
             }
         }
-        if (elements.simLegsText) {
-            elements.simLegsText.textContent = `Sell ${shortStrikeFormatted} / Buy ${longStrikeFormatted} ${optionType}`;
-        }
-
-        // Update summary
-        elements.simMaxGain.textContent = '+' + formatCurrency(data.summary.max_gain, 0);
-        elements.simMaxLoss.textContent = '-' + formatCurrency(data.summary.max_loss, 0);
-        elements.simBreakeven.textContent = formatCurrency(data.summary.breakeven_price, 2);
-        elements.simBreakevenPct.textContent = (data.summary.breakeven_pct >= 0 ? '+' : '') + formatNumber(data.summary.breakeven_pct, 1) + '% from current';
-
-        // Render table
-        renderSimulatorTable(data.points);
-
-        // Update AI Explainer button state
-        if (aiExplainerController) {
-            aiExplainerController.render();
-        }
-
-        // Scroll to simulator
-        elements.spreadSimulator.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (err) {
-        console.error('Error simulating spread:', err);
-        showError('Failed to simulate spread: ' + err.message);
-        closeSimulator();
-    } finally {
-        elements.simLoadingState.style.display = 'none';
-    }
-}
-
-// Render the P/L table
-function renderSimulatorTable(points) {
-    if (!elements.simTableBody) return;
-
-    if (!points || points.length === 0) {
-        elements.simTableBody.innerHTML =
-            '<tr><td colspan="3" class="text-center">No data</td></tr>';
-        if (elements.togglePayoffTable) {
-            elements.togglePayoffTable.style.display = 'none';
-        }
-        return;
-    }
-
-    // Key moves to show in collapsed state: -5%, 0%, +5%
-    const keyMoves = [-5, 0, 5];
-
-    // Filter points for collapsed view
-    let displayPoints = points;
-    if (!state.payoffTableExpanded) {
-        displayPoints = points.filter(p => keyMoves.includes(p.pct_move));
-        // Fallback: if no key points found, show first 3 points
-        if (displayPoints.length === 0) {
-            displayPoints = points.slice(0, 3);
-        }
-    }
-
-    elements.simTableBody.innerHTML = displayPoints.map(point => {
-        const plClass = point.pl_per_spread >= 0 ? 'positive' : 'negative';
-        const plPrefix = point.pl_per_spread >= 0 ? '+' : '';
-        const pctPrefix = point.pct_move >= 0 ? '+' : '';
-
-        return `
-            <tr>
-                <td class="col-pct-move">${pctPrefix}${point.pct_move}%</td>
-                <td class="col-price">${formatCurrency(point.underlying_price, 2)}</td>
-                <td class="col-pl ${plClass}">${plPrefix}${formatCurrency(point.pl_per_spread, 0)}</td>
-            </tr>
-        `;
-    }).join('');
-
-    // Show/hide toggle button and update its text
-    if (elements.togglePayoffTable) {
-        if (points.length > displayPoints.length || state.payoffTableExpanded) {
-            elements.togglePayoffTable.style.display = 'block';
-            const icon = elements.togglePayoffTable.querySelector('.toggle-icon');
-            const text = elements.togglePayoffTable.querySelector('.toggle-text');
-            if (state.payoffTableExpanded) {
-                if (icon) icon.innerHTML = '&#9650;';  // Up arrow
-                if (text) text.textContent = 'Show less';
-            } else {
-                if (icon) icon.innerHTML = '&#9660;';  // Down arrow
-                if (text) text.textContent = 'Show full P/L table';
-            }
-        } else {
-            elements.togglePayoffTable.style.display = 'none';
-        }
-    }
-}
-
-/**
- * Toggle P/L table between collapsed (3 key rows) and expanded (all rows) state.
- */
-function togglePayoffTableExpand() {
-    state.payoffTableExpanded = !state.payoffTableExpanded;
-
-    // Re-render the table with current simulator data
-    if (state.simulatorData && Array.isArray(state.simulatorData.points)) {
-        renderSimulatorTable(state.simulatorData.points);
+        console.error('Error fetching spread simulation:', err);
+        showError('Failed to load spread data: ' + err.message);
     }
 }

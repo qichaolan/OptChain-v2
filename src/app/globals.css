@@ -6,6 +6,8 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 248, 250, 252;
   --background-end-rgb: 255, 255, 255;
+  /* App header height - used for layout calculations */
+  --app-header-height: 56px;
 }
 
 @media (prefers-color-scheme: dark) {

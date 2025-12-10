@@ -13,12 +13,14 @@ export type PageId =
   | 'leaps_ranker'
   | 'credit_spread_screener'
   | 'iron_condor_screener'
-  | 'speculative_screener';
+  | 'speculative_screener'
+  | 'chain_analysis';
 
 export type ContextType =
   | 'roi_simulator'
   | 'spread_simulator'
-  | 'options_analysis';
+  | 'options_analysis'
+  | 'chain_analysis';
 
 // ============================================================================
 // Device & Theme Settings
@@ -68,6 +70,8 @@ export interface LeapsMetadata {
   breakeven?: number;
   maxLoss?: number;
   daysToExpiration?: number;
+  /** Optional array of available contracts for Battle Mode comparison */
+  availableContracts?: LeapsContract[];
 }
 
 // ============================================================================
@@ -109,16 +113,34 @@ export interface IronCondorMetadata {
   // Call spread (upper side)
   shortCallStrike: number;
   longCallStrike: number;
-  // Metrics
-  netCredit: number;
-  maxLoss: number;
-  maxGain: number;
+  // Spread dimensions
+  width: number; // Width of each spread wing (e.g., $3)
+  // Metrics (all in dollars per contract)
+  netCredit: number; // Total credit received (dollars per contract)
+  maxLoss: number;   // Maximum loss (dollars per contract)
+  maxGain: number;   // Maximum gain (dollars per contract)
   lowerBreakeven: number;
   upperBreakeven: number;
   profitZoneWidth: number;
+  // Risk/Reward
+  ror?: number; // Return on Risk (ROR) percentage (0-1)
+  riskRewardRatio?: number; // Risk to reward ratio (e.g., 3.9 for 1:3.9)
+  // Probability
   probProfit?: number;
+  probLoss?: number;
+  // Greeks
+  shortPutDelta?: number;
+  shortCallDelta?: number;
+  netTheta?: number; // Combined theta (daily time decay in $)
+  netVega?: number; // Combined vega
+  // IV metrics
   iv?: number;
   ivp?: number;
+  // Distance metrics (percentage from underlying, positive = OTM)
+  distToShortPut?: number;
+  distToShortCall?: number;
+  distToLowerBE?: number;
+  distToUpperBE?: number;
 }
 
 // ============================================================================
@@ -133,6 +155,56 @@ export interface SpeculativeMetadata {
 }
 
 // ============================================================================
+// Chain Analysis Metadata
+// ============================================================================
+
+export interface OptionContract {
+  contractSymbol: string;
+  optionType: 'call' | 'put';
+  strike: number;
+  expiration: string;
+  lastPrice: number;
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility?: number;
+  delta?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+  rho?: number;
+}
+
+// Strike Open Interest data point for histogram
+export interface StrikeOiData {
+  strike: number;
+  openInterest: number;
+}
+
+export interface ChainAnalysisMetadata {
+  symbol: string;
+  underlyingPrice: number;
+  expiration: string;
+  dte: number;
+  selectedOption?: OptionContract;
+  optionType?: 'call' | 'put';
+  // Calculated metrics for selected option
+  breakeven?: number;
+  maxLoss?: number;
+  leverage?: number;
+  stockEquivalent?: number;
+  hurdleRate?: number;
+  distToBreakeven?: number;
+  // Total premium across all strikes (OI * mid price * 100)
+  totalCallPremium?: number;
+  totalPutPremium?: number;
+  // Open Interest data for histogram
+  callOiData?: StrikeOiData[];
+  putOiData?: StrikeOiData[];
+}
+
+// ============================================================================
 // Union Type for All Metadata
 // ============================================================================
 
@@ -140,7 +212,8 @@ export type PageMetadata =
   | LeapsMetadata
   | CreditSpreadMetadata
   | IronCondorMetadata
-  | SpeculativeMetadata;
+  | SpeculativeMetadata
+  | ChainAnalysisMetadata;
 
 // ============================================================================
 // Context Envelope - The Standard Wrapper
@@ -232,4 +305,14 @@ export function createIronCondorContext(
   settings?: Partial<UserSettings>
 ): ContextEnvelope<IronCondorMetadata> {
   return createContextEnvelope('iron_condor_screener', 'spread_simulator', metadata, settings);
+}
+
+/**
+ * Create Chain Analysis context envelope
+ */
+export function createChainAnalysisContext(
+  metadata: ChainAnalysisMetadata,
+  settings?: Partial<UserSettings>
+): ContextEnvelope<ChainAnalysisMetadata> {
+  return createContextEnvelope('chain_analysis', 'chain_analysis', metadata, settings);
 }

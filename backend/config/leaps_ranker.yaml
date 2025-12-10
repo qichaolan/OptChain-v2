@@ -98,8 +98,8 @@ display:
   # Columns to display in output (in order)
   # Available columns: contract_symbol, expiration, dte, strike,
   # current_underlying_price, target_price, premium, cost, payoff_target,
-  # roi_target, ease_score, roi_score, score, delta, implied_volatility,
-  # open_interest, volume, mark
+  # roi_target, ease_score, roi_score, score, delta, gamma, theta, vega,
+  # implied_volatility, open_interest, volume, mark, bid, ask, last_trade_price
   output_columns:
     - contract_symbol
     - expiration
@@ -113,8 +113,16 @@ display:
     - ease_score
     - roi_score
     - score
+    - last_trade_price
+    - bid
+    - ask
+    - delta
+    - gamma
+    - theta
+    - vega
     - implied_volatility
     - open_interest
+    - volume
 
 # -----------------------------------------------------------------------------
 # OpenBB Provider Settings

@@ -5,3 +5,5 @@
  */
 
 export { useAiExplainer, default as useAiExplainerDefault } from './useAiExplainer';
+export { usePopoverPosition } from './usePopoverPosition';
+export type { PopoverPosition, PopoverPlacement, UsePopoverPositionOptions } from './usePopoverPosition';

@@ -2,37 +2,14 @@
  * Text Sanitization Utilities
  *
  * Sanitizes LLM output to prevent XSS attacks.
- * Uses a simple HTML entity encoding approach that works in both
- * server and client environments.
+ * React automatically escapes text content, so we only need to remove
+ * dangerous patterns - not encode HTML entities.
  */
-
-/**
- * HTML entities to escape
- */
-const HTML_ENTITIES: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#x27;',
-  '/': '&#x2F;',
-  '`': '&#x60;',
-  '=': '&#x3D;',
-};
-
-/**
- * Escape HTML special characters to prevent XSS
- */
-export function escapeHtml(text: string): string {
-  if (typeof text !== 'string') {
-    return String(text);
-  }
-  return text.replace(/[&<>"'`=/]/g, (char) => HTML_ENTITIES[char] || char);
-}
 
 /**
  * Sanitize a string for safe display
  * Removes potential script injection patterns
+ * Note: We don't HTML-encode here because React handles text escaping
  */
 export function sanitizeText(text: string | null | undefined): string {
   if (text == null) {
@@ -52,8 +29,10 @@ export function sanitizeText(text: string | null | undefined): string {
   text = text.replace(/on\w+\s*=/gi, '');
   text = text.replace(/data:/gi, '');
 
-  // Escape remaining HTML
-  return escapeHtml(text);
+  // Remove any HTML tags (React will escape text content anyway)
+  text = text.replace(/<[^>]*>/g, '');
+
+  return text;
 }
 
 /**

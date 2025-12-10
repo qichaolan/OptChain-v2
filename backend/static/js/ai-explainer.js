@@ -1031,9 +1031,218 @@ class AiExplainerController {
 }
 
 // =============================================================================
+// AI Tooltip Triggers (for hover/tap AI explanations)
+// =============================================================================
+
+/**
+ * AI Tooltip Controller
+ *
+ * Enables AI-powered tooltips for metric elements.
+ * Works by sending postMessage to parent window for tooltip rendering.
+ *
+ * Usage: Add data attributes to elements:
+ * - data-ai-metric="iv" (metric type: iv, ivp, delta, score, dte, roc, pop, etc.)
+ * - data-ai-value="0.35" (the metric value)
+ * - data-ai-label="IV Percentile" (optional label)
+ */
+class AiTooltipController {
+    constructor(options = {}) {
+        this.pageId = options.pageId || 'unknown';
+        this.getMetadata = options.getMetadata || (() => ({}));
+        this.hoverDelay = options.hoverDelay || 500; // ms before showing tooltip
+        this.activeTooltipId = null;
+        this.hoverTimeout = null;
+
+        this._init();
+    }
+
+    /**
+     * Initialize tooltip listeners
+     */
+    _init() {
+        // Add global listeners for elements with data-ai-metric
+        document.addEventListener('mouseenter', (e) => this._handleMouseEnter(e), true);
+        document.addEventListener('mouseleave', (e) => this._handleMouseLeave(e), true);
+        document.addEventListener('click', (e) => this._handleClick(e), true);
+
+        // Listen for tooltip responses from parent
+        window.addEventListener('message', (e) => this._handleMessage(e));
+    }
+
+    /**
+     * Handle mouse enter on metric elements
+     */
+    _handleMouseEnter(e) {
+        const target = e.target.closest('[data-ai-metric]');
+        if (!target) return;
+
+        // Clear any existing timeout
+        if (this.hoverTimeout) {
+            clearTimeout(this.hoverTimeout);
+        }
+
+        // Set timeout before showing tooltip
+        this.hoverTimeout = setTimeout(() => {
+            this._requestTooltip(target, 'hover');
+        }, this.hoverDelay);
+    }
+
+    /**
+     * Handle mouse leave on metric elements
+     */
+    _handleMouseLeave(e) {
+        const target = e.target.closest('[data-ai-metric]');
+        if (!target) return;
+
+        // Clear hover timeout
+        if (this.hoverTimeout) {
+            clearTimeout(this.hoverTimeout);
+            this.hoverTimeout = null;
+        }
+
+        // Hide tooltip
+        this._hideTooltip(target);
+    }
+
+    /**
+     * Handle click/tap on metric elements (mobile)
+     */
+    _handleClick(e) {
+        const target = e.target.closest('[data-ai-metric]');
+        if (!target) return;
+
+        // On mobile, toggle tooltip on tap
+        if ('ontouchstart' in window) {
+            e.preventDefault();
+            if (this.activeTooltipId === this._getElementId(target)) {
+                this._hideTooltip(target);
+            } else {
+                this._requestTooltip(target, 'tap');
+            }
+        }
+    }
+
+    /**
+     * Generate unique ID for element
+     */
+    _getElementId(element) {
+        if (!element.dataset.aiTooltipId) {
+            element.dataset.aiTooltipId = 'tooltip_' + Math.random().toString(36).substr(2, 9);
+        }
+        return element.dataset.aiTooltipId;
+    }
+
+    /**
+     * Request tooltip from parent via postMessage
+     */
+    _requestTooltip(element, trigger) {
+        const metricType = element.dataset.aiMetric;
+        const metricValue = element.dataset.aiValue || element.textContent.trim();
+        const metricLabel = element.dataset.aiLabel || metricType.toUpperCase();
+
+        // Get element position relative to viewport
+        const rect = element.getBoundingClientRect();
+        const position = {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            // Also include scroll position for absolute positioning
+            scrollTop: window.scrollY || document.documentElement.scrollTop,
+            scrollLeft: window.scrollX || document.documentElement.scrollLeft,
+        };
+
+        // Store active tooltip
+        this.activeTooltipId = this._getElementId(element);
+
+        // Send request to parent
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'AI_TOOLTIP_REQUEST',
+                data: {
+                    tooltipId: this.activeTooltipId,
+                    pageId: this.pageId,
+                    metricType,
+                    metricValue,
+                    metricLabel,
+                    position,
+                    trigger, // 'hover' or 'tap'
+                    metadata: this.getMetadata(),
+                },
+            }, '*');
+        }
+
+        // Add visual indicator that tooltip is loading
+        element.classList.add('ai-tooltip-loading');
+    }
+
+    /**
+     * Hide tooltip
+     */
+    _hideTooltip(element) {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'AI_TOOLTIP_HIDE',
+                data: {
+                    tooltipId: this._getElementId(element),
+                },
+            }, '*');
+        }
+
+        element.classList.remove('ai-tooltip-loading');
+        this.activeTooltipId = null;
+    }
+
+    /**
+     * Handle messages from parent
+     */
+    _handleMessage(e) {
+        const { type, data } = e.data || {};
+
+        if (type === 'AI_TOOLTIP_RESPONSE') {
+            // Parent has displayed the tooltip, remove loading state
+            const element = document.querySelector(`[data-ai-tooltip-id="${data.tooltipId}"]`);
+            if (element) {
+                element.classList.remove('ai-tooltip-loading');
+            }
+        }
+    }
+
+    /**
+     * Dynamically attach tooltip triggers to elements
+     * Call this after rendering new content
+     */
+    attachToElements(selector = '[data-ai-metric]') {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            // Add visual hint that element has AI tooltip
+            if (!el.classList.contains('ai-tooltip-enabled')) {
+                el.classList.add('ai-tooltip-enabled');
+                el.setAttribute('title', 'Hover for AI explanation');
+            }
+        });
+    }
+}
+
+// Global tooltip controller instance
+let aiTooltipController = null;
+
+/**
+ * Initialize AI tooltips for a page
+ */
+function initAiTooltips(options = {}) {
+    if (!aiTooltipController) {
+        aiTooltipController = new AiTooltipController(options);
+    }
+    return aiTooltipController;
+}
+
+// =============================================================================
 // Exports (for use in other modules)
 // =============================================================================
 
 // Make available globally
 window.AiExplainerController = AiExplainerController;
 window.aiExplainerCache = aiExplainerCache;
+window.AiTooltipController = AiTooltipController;
+window.initAiTooltips = initAiTooltips;

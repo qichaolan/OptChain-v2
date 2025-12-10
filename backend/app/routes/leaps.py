@@ -121,7 +121,8 @@ async def get_leaps_ranking(request: Request, leaps_request: LEAPSRequest):
         contract_columns = [
             "contract_symbol", "expiration", "strike", "target_price",
             "premium", "cost", "payoff_target", "roi_target",
-            "ease_score", "roi_score", "score", "implied_volatility", "open_interest"
+            "ease_score", "roi_score", "score", "implied_volatility", "open_interest",
+            "last_trade_price", "bid", "ask", "delta", "gamma", "theta", "vega", "volume"
         ]
         available_cols = [c for c in contract_columns if c in df.columns]
         df_out = df[available_cols].copy()
@@ -150,19 +151,26 @@ async def get_leaps_ranking(request: Request, leaps_request: LEAPSRequest):
 
         # Clean up optional fields in each record (handle NaN -> None)
         for record in records:
-            # Handle implied_volatility: NaN or 0 -> None
-            if "implied_volatility" in record:
-                val = record["implied_volatility"]
-                if val is None or (isinstance(val, float) and (not np.isfinite(val) or val == 0)):
-                    record["implied_volatility"] = None
+            # Handle optional float fields: NaN/inf -> None (but keep 0 as valid)
+            optional_float_fields = [
+                "implied_volatility", "last_trade_price", "bid", "ask",
+                "delta", "gamma", "theta", "vega"
+            ]
+            for field in optional_float_fields:
+                if field in record:
+                    val = record[field]
+                    if val is None or (isinstance(val, float) and not np.isfinite(val)):
+                        record[field] = None
 
-            # Handle open_interest: NaN or 0 -> None, otherwise convert to int
-            if "open_interest" in record:
-                val = record["open_interest"]
-                if val is None or (isinstance(val, float) and (not np.isfinite(val) or val == 0)):
-                    record["open_interest"] = None
-                elif val is not None:
-                    record["open_interest"] = int(val)
+            # Handle optional int fields: NaN/inf -> None, otherwise convert to int
+            optional_int_fields = ["open_interest", "volume"]
+            for field in optional_int_fields:
+                if field in record:
+                    val = record[field]
+                    if val is None or (isinstance(val, float) and not np.isfinite(val)):
+                        record[field] = None
+                    elif val is not None:
+                        record[field] = int(val)
 
         # Convert to Pydantic models
         contracts = []

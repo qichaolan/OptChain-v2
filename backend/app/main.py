@@ -18,6 +18,7 @@ from app.routes.credit_spreads import router as credit_spreads_router
 from app.routes.iron_condors import router as iron_condors_router
 from app.routes.ai_score import router as ai_score_router
 from app.routes.ai_explainer import router as ai_explainer_router
+from app.routes.chain_analysis import router as chain_analysis_router
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +48,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # In production, ALLOWED_ORIGINS should be set to the actual frontend domain
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,https://optchain.app,https://*.optchain.app"
+    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://localhost:3001,https://optchain.app,https://*.optchain.app"
 ).split(",")
 
 # Configure CORS - restrictive settings
@@ -104,6 +105,7 @@ app.include_router(credit_spreads_router)
 app.include_router(iron_condors_router)
 app.include_router(ai_score_router)
 app.include_router(ai_explainer_router)
+app.include_router(chain_analysis_router)
 
 
 @app.get("/", response_class=HTMLResponse)

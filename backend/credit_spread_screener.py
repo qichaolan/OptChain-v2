@@ -227,6 +227,85 @@ def estimate_delta(
     return delta
 
 
+def estimate_theta(
+    strike: float,
+    underlying_price: float,
+    dte: int,
+    iv: float,
+    option_type: str,
+    risk_free_rate: float = 0.05,
+    dividend_yield: float = 0.013,
+) -> float:
+    """
+    Estimate option theta (time decay per day) using Black-Scholes formula.
+
+    Parameters
+    ----------
+    strike : float
+        Strike price.
+    underlying_price : float
+        Current underlying price.
+    dte : int
+        Days to expiration.
+    iv : float
+        Implied volatility (annualized, e.g., 0.25 for 25%).
+    option_type : str
+        "call" or "put".
+    risk_free_rate : float
+        Risk-free rate (annualized).
+    dividend_yield : float
+        Continuous dividend yield (annualized). Default 1.3% for SPY/QQQ.
+
+    Returns
+    -------
+    float
+        Estimated theta (daily time decay in dollars per share).
+        Positive theta means the option loses value each day (typical for short positions).
+        For credit spreads (short positions), positive theta is favorable.
+    """
+    if dte <= 0 or iv <= 0 or underlying_price <= 0 or strike <= 0:
+        return 0.0
+
+    S = underlying_price
+    K = strike
+    r = risk_free_rate
+    q = dividend_yield
+    sigma = iv
+    t = dte / 365.0
+    sqrt_t = np.sqrt(t)
+
+    # Black-Scholes d1 and d2
+    d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * t) / (sigma * sqrt_t)
+    d2 = d1 - sigma * sqrt_t
+
+    # Standard normal PDF at d1
+    n_prime_d1 = np.exp(-0.5 * d1 ** 2) / np.sqrt(2 * np.pi)
+
+    # Theta formula (annualized)
+    # For calls: theta = -S * e^(-q*t) * N'(d1) * sigma / (2 * sqrt(t)) - r * K * e^(-r*t) * N(d2) + q * S * e^(-q*t) * N(d1)
+    # For puts: theta = -S * e^(-q*t) * N'(d1) * sigma / (2 * sqrt(t)) + r * K * e^(-r*t) * N(-d2) - q * S * e^(-q*t) * N(-d1)
+
+    common_term = -S * np.exp(-q * t) * n_prime_d1 * sigma / (2 * sqrt_t)
+
+    if option_type.lower() == "call":
+        theta_annual = (
+            common_term
+            - r * K * np.exp(-r * t) * norm.cdf(d2)
+            + q * S * np.exp(-q * t) * norm.cdf(d1)
+        )
+    else:  # put
+        theta_annual = (
+            common_term
+            + r * K * np.exp(-r * t) * norm.cdf(-d2)
+            - q * S * np.exp(-q * t) * norm.cdf(-d1)
+        )
+
+    # Convert to daily theta (divide by 365)
+    theta_daily = theta_annual / 365.0
+
+    return theta_daily
+
+
 def _fetch_chain_yfinance(symbol: str) -> pd.DataFrame:
     """Fallback to fetch option chain directly from yfinance with retry logic."""
     import time
@@ -517,6 +596,14 @@ def _build_put_credit_spreads(
             # Probability of profit (delta-based approximation)
             prob_profit = 1 - short_delta
 
+            # Estimate net theta for the spread (short theta - long theta)
+            # For credit spreads, positive net theta = favorable (time decay helps the position)
+            short_theta = estimate_theta(short_strike, underlying_price, dte, short_iv, "put")
+            long_theta = estimate_theta(long_strike, underlying_price, dte, short_iv, "put")
+            # Net theta: selling short option (we receive its theta decay) - buying long option (we pay its theta decay)
+            # For puts, theta is negative (option loses value), so -short_theta is positive (we benefit)
+            net_theta = -short_theta + long_theta  # Negate short because we sold it
+
             spread = {
                 "symbol": symbol,
                 "expiration": expiration.strftime("%Y-%m-%d") if hasattr(expiration, "strftime") else str(expiration)[:10],
@@ -545,6 +632,8 @@ def _build_put_credit_spreads(
                 "short_ask": short_ask,
                 "long_bid": long_bid,
                 "long_ask": long_ask,
+                "short_theta": short_theta,
+                "net_theta": net_theta,
             }
             spreads.append(spread)
 
@@ -672,6 +761,14 @@ def _build_call_credit_spreads(
             # Probability of profit (delta-based approximation)
             prob_profit = 1 - short_delta
 
+            # Estimate net theta for the spread (short theta - long theta)
+            # For credit spreads, positive net theta = favorable (time decay helps the position)
+            short_theta = estimate_theta(short_strike, underlying_price, dte, short_iv, "call")
+            long_theta = estimate_theta(long_strike, underlying_price, dte, short_iv, "call")
+            # Net theta: selling short option (we receive its theta decay) - buying long option (we pay its theta decay)
+            # For calls, theta is negative (option loses value), so -short_theta is positive (we benefit)
+            net_theta = -short_theta + long_theta  # Negate short because we sold it
+
             spread = {
                 "symbol": symbol,
                 "expiration": expiration.strftime("%Y-%m-%d") if hasattr(expiration, "strftime") else str(expiration)[:10],
@@ -700,6 +797,8 @@ def _build_call_credit_spreads(
                 "short_ask": short_ask,
                 "long_bid": long_bid,
                 "long_ask": long_ask,
+                "short_theta": short_theta,
+                "net_theta": net_theta,
             }
             spreads.append(spread)
 

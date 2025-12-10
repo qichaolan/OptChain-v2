@@ -16,6 +16,10 @@ function formatNumber(num, decimals = 2) {
     return Number(num).toFixed(decimals);
 }
 
+// Embed mode detection - when embedded in Next.js wrapper, hide ROI Simulator
+// Detect via query param OR if page is in an iframe
+const isEmbedMode = new URLSearchParams(window.location.search).get('embed') === 'true' || window.parent !== window;
+
 // State
 let state = {
     tickers: [],
@@ -368,12 +372,6 @@ function clearResultsAndSimulator() {
     if (elements.simulator) {
         elements.simulator.style.display = 'none';
     }
-
-    // Clear AI Explainer
-    if (aiExplainerController) {
-        aiExplainerController.clearExplanation();
-    }
-    updateAiExplainerState();
 }
 
 // Fetch LEAPS data
@@ -403,7 +401,7 @@ async function fetchLEAPS() {
                 symbol,
                 target_pct: targetPct,
                 mode,
-                top_n: 10, // Display top 10 LEAPS only
+                top_n: 20, // Display top 20 LEAPS
             }),
         });
 
@@ -549,7 +547,19 @@ function toggleContractSelection(contract, row) {
 
 // Show the simulator panel with contract details
 function showSimulator(contract) {
-    if (!elements.simulator) return;
+    // Always send simulation data to parent window (Next.js wrapper) first
+    if (window.parent !== window) {
+        const metadata = getSimulationMetadata();
+        if (metadata) {
+            window.parent.postMessage({
+                type: 'LEAPS_SIMULATION_UPDATE',
+                payload: metadata,
+            }, '*');
+        }
+    }
+
+    // Skip DOM updates if simulator element doesn't exist or in embed mode
+    if (!elements.simulator || isEmbedMode) return;
 
     // Show the simulator panel
     elements.simulator.style.display = 'block';
@@ -573,12 +583,6 @@ function showSimulator(contract) {
 
     // Run simulation automatically
     runSimulation();
-
-    // Clear previous AI explanation and update state
-    if (aiExplainerController) {
-        aiExplainerController.clearExplanation();
-    }
-    updateAiExplainerState();
 }
 
 // Update contracts info display (with XSS protection)
@@ -796,13 +800,11 @@ function hideError() {
 }
 
 // =====================================================
-// AI Explainer Integration
+// Metadata for Parent Window
 // =====================================================
 
-// Global reference to AI Explainer controller
-let aiExplainerController = null;
-
-// Get current simulation metadata for AI Explainer
+// Get current simulation metadata for parent window
+// Uses camelCase keys to match TypeScript validation schema
 function getSimulationMetadata() {
     // Check if we have selected contracts
     if (state.selectedContracts.length === 0) {
@@ -831,70 +833,52 @@ function getSimulationMetadata() {
         const profit = payoff - cost;
         const roi = (profit / cost) * 100;
         roiByTarget[`+${pct}%`] = {
-            target_price: parseFloat(targetPrice.toFixed(2)),
+            targetPrice: parseFloat(targetPrice.toFixed(2)),
             roi: parseFloat(roi.toFixed(1)),
             profit: parseFloat(profit.toFixed(0))
         };
     });
 
-    // Build metadata object
+    // Build availableContracts array from all contracts in the table
+    const availableContracts = state.contracts.map(c => ({
+        contractSymbol: c.contract_symbol,
+        expiration: c.expiration,
+        strike: c.strike,
+        premium: c.premium,
+        cost: c.cost || c.premium * 100,
+        impliedVolatility: c.implied_volatility || null,
+        openInterest: c.open_interest || null,
+        delta: c.delta || null,
+        gamma: c.gamma || null,
+        theta: c.theta || null,
+        vega: c.vega || null,
+    }));
+
+    // Build metadata object with camelCase keys
     return {
         symbol: symbol,
-        underlying_price: underlying,
-        scoring_mode: mode,
+        underlyingPrice: underlying,
+        scoringMode: mode,
         contract: {
-            symbol: contract.contract_symbol,
+            contractSymbol: contract.contract_symbol,
             expiration: contract.expiration,
             strike: strike,
             premium: premium,
             cost: cost,
             breakeven: parseFloat(breakeven.toFixed(2)),
-            breakeven_pct: parseFloat(breakevenPct.toFixed(1)),
-            implied_volatility: contract.implied_volatility ? parseFloat((contract.implied_volatility * 100).toFixed(1)) : null,
-            open_interest: contract.open_interest || null,
-            ease_score: contract.ease_score ? parseFloat(contract.ease_score.toFixed(2)) : null,
-            roi_score: contract.roi_score ? parseFloat(contract.roi_score.toFixed(2)) : null,
-            composite_score: contract.score ? parseFloat(contract.score.toFixed(2)) : null
+            breakevenPct: parseFloat(breakevenPct.toFixed(1)),
+            impliedVolatility: contract.implied_volatility ? parseFloat((contract.implied_volatility * 100).toFixed(1)) : null,
+            openInterest: contract.open_interest || null,
+            easeScore: contract.ease_score ? parseFloat(contract.ease_score.toFixed(2)) : null,
+            roiScore: contract.roi_score ? parseFloat(contract.roi_score.toFixed(2)) : null,
+            compositeScore: contract.score ? parseFloat(contract.score.toFixed(2)) : null
         },
-        roi_simulation: roiByTarget,
+        // All contracts from the table for Battle Mode selection
+        availableContracts: availableContracts,
+        roiSimulation: roiByTarget,
         context: {
-            target_pct_config: parseFloat(elements.targetPctInput.value),
-            contracts_analyzed: state.contracts.length
+            targetPctConfig: parseFloat(elements.targetPctInput.value),
+            contractsAnalyzed: state.contracts.length
         }
     };
 }
-
-// Initialize AI Explainer after DOM is ready
-function initAiExplainer() {
-    // Check if AiExplainerController is available
-    if (typeof AiExplainerController === 'undefined') {
-        console.warn('AiExplainerController not available');
-        return;
-    }
-
-    // Initialize the controller
-    aiExplainerController = new AiExplainerController({
-        buttonContainerId: 'aiExplainerBtnContainer',
-        panelContainerId: 'aiExplainerPanelContainer',
-        pageId: 'leaps_ranker',
-        contextType: 'roi_simulator',
-        getMetadata: getSimulationMetadata
-    });
-
-    // Render the button (initially may be disabled if no simulation)
-    aiExplainerController.render();
-}
-
-// Re-render AI Explainer button when simulation state changes
-function updateAiExplainerState() {
-    if (aiExplainerController) {
-        aiExplainerController.render();
-    }
-}
-
-// Add AI Explainer initialization to DOMContentLoaded
-const originalDOMContentLoaded = document.addEventListener;
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize AI Explainer after a short delay to ensure DOM is ready
-    setTimeout(initAiExplainer, 100);
-});

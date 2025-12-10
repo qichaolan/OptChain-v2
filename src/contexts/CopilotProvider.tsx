@@ -1,35 +1,29 @@
 'use client';
 
 /**
- * CopilotKit Provider
+ * CopilotKit Provider - Chatless Generative UI
  *
  * Root provider component that wraps the application with CopilotKit context.
- * Configures the runtime endpoint and provides AI capabilities to child components.
+ * Configures the runtime endpoint for headless AI capabilities.
+ *
+ * This is a "Chatless" implementation where the agent communicates through
+ * APIs and the app renders generative UI as part of its native interface.
+ * No chat surface - AI insights appear as built-in product features.
  */
 
 import React, { ReactNode } from 'react';
 import { CopilotKit } from '@copilotkit/react-core';
-import { CopilotPopup } from '@copilotkit/react-ui';
-
-// Import CopilotKit styles
-import '@copilotkit/react-ui/styles.css';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
 const COPILOTKIT_CONFIG = {
-  // API endpoint for CopilotKit runtime
+  // API endpoint for CopilotKit runtime (self-hosted with Google Gemini)
   runtimeUrl: '/api/copilotkit',
 
-  // Public API key (if using cloud service)
+  // CopilotKit Cloud API key
   publicApiKey: process.env.NEXT_PUBLIC_COPILOTKIT_API_KEY,
-
-  // Chat configuration
-  chatInstructions: `You are an expert options analyst AI assistant for OptionChain.
-You help users understand their options trading simulations including LEAPS, Credit Spreads, and Iron Condors.
-Always provide educational, fact-based analysis without giving specific trading advice.
-Format your responses with clear sections and use the structured JSON format when analyzing trades.`,
 };
 
 // ============================================================================
@@ -44,6 +38,13 @@ interface CopilotProviderProps {
 // CopilotProvider Component
 // ============================================================================
 
+/**
+ * Headless CopilotKit provider for chatless generative UI.
+ *
+ * The agent doesn't talk directly to the user. Instead, it communicates
+ * with the application through APIs, and the app renders generative UI
+ * from the agent as part of its native interface.
+ */
 export function CopilotProvider({ children }: CopilotProviderProps) {
   return (
     <CopilotKit
@@ -51,15 +52,6 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
       publicApiKey={COPILOTKIT_CONFIG.publicApiKey}
     >
       {children}
-      <CopilotPopup
-        instructions={COPILOTKIT_CONFIG.chatInstructions}
-        labels={{
-          title: 'AI Insights',
-          initial: 'How can I help you understand your options strategy?',
-          placeholder: 'Ask about your simulation...',
-        }}
-        defaultOpen={false}
-      />
     </CopilotKit>
   );
 }

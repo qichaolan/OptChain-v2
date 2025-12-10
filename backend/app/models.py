@@ -72,6 +72,14 @@ class LEAPSContract(BaseModel):
     score: float
     implied_volatility: Optional[float] = None
     open_interest: Optional[int] = None
+    last_trade_price: Optional[float] = None
+    bid: Optional[float] = None
+    ask: Optional[float] = None
+    delta: Optional[float] = None
+    gamma: Optional[float] = None
+    theta: Optional[float] = None
+    vega: Optional[float] = None
+    volume: Optional[int] = None
 
 
 class LEAPSResponse(BaseModel):

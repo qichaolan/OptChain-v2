@@ -5,91 +5,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Screener - Option Chain Analysis</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script>
+        // Embed mode detection - hide header/footer for iframe embedding
+        if (window.location.search.includes('embed=true') || window.parent !== window) {
+            document.documentElement.classList.add('embed-mode');
+        }
+    </script>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">Option Chain Analysis</div>
-                <nav class="main-nav">
-                    <a href="/" class="nav-btn">LEAPS Ranker</a>
-                    <a href="/credit-spreads" class="nav-btn active">Credit Spreads</a>
-                    <a href="/iron-condors" class="nav-btn">Iron Condors</a>
-                </nav>
-            </div>
-        </div>
-    </header>
-
     <main class="container">
-        <!-- Page Header - Compact -->
-        <div class="page-header-compact">
-            <h1 class="page-title-compact">Credit Spreads Screener</h1>
-            <p class="page-subtitle-compact">Defined-risk income trades. Profit when price stays in your favor.</p>
-        </div>
-
-        <!-- Simplified Controls Card with Inline Summary Cards -->
-        <section class="controls-card controls-card-with-summary" id="controls">
-            <div class="controls-summary-layout">
-                <!-- Left side: Form controls -->
-                <div class="simple-form">
-                    <div class="simple-form-row simple-form-row-inline">
-                        <div class="simple-form-group">
-                            <label for="tickerSelect">Underlying</label>
-                            <select id="tickerSelect" class="select-lg">
-                                <option value="SPY">SPY</option>
-                                <option value="QQQ">QQQ</option>
-                            </select>
-                        </div>
-                        <div class="simple-form-group">
-                            <label for="spreadTypeSelect">Strategy</label>
-                            <select id="spreadTypeSelect" class="select-lg">
-                                <option value="PCS">Bullish (Put Credit Spread)</option>
-                                <option value="CCS">Bearish (Call Credit Spread)</option>
-                            </select>
-                        </div>
-                        <div class="simple-form-group simple-form-action">
-                            <button class="btn btn-primary btn-lg btn-run" id="runScreenerBtn">
-                                <span class="btn-icon">&#9654;</span>
-                                Find Spreads
-                            </button>
-                        </div>
+        <!-- Controls Card - Two-Row Layout -->
+        <section class="controls-card" id="controls">
+            <!-- ROW 1: Search controls (left) + AI Market View (right) -->
+            <div class="controls-row-1">
+                <!-- Left: Form controls -->
+                <div class="controls-left">
+                    <div class="control-group">
+                        <label for="tickerSelect">Ticker</label>
+                        <select id="tickerSelect" class="select-compact">
+                            <option value="SPY">SPY</option>
+                            <option value="QQQ">QQQ</option>
+                        </select>
                     </div>
+                    <div class="control-group">
+                        <label for="spreadTypeSelect">Strategy</label>
+                        <select id="spreadTypeSelect" class="select-compact">
+                            <option value="PCS">Bullish (PCS)</option>
+                            <option value="CCS">Bearish (CCS)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-compact" id="runScreenerBtn">
+                        <span class="btn-icon">&#9654;</span>
+                        Find Spreads
+                    </button>
+                    <span class="controls-hint-text">(Defined-risk income trades. Profit when price stays in your favor.)</span>
                 </div>
-
-                <!-- Right side: Summary Cards (2x2 grid on desktop) -->
-                <div class="summary-cards-inline" id="infoCards" style="display: none;">
-                    <div class="summary-card-mini">
-                        <div class="summary-card-mini-icon">📈</div>
-                        <div class="summary-card-mini-content">
-                            <div class="summary-card-mini-label">Symbol</div>
-                            <div class="summary-card-mini-value" id="symbolDisplay">-</div>
-                        </div>
-                    </div>
-                    <div class="summary-card-mini">
-                        <div class="summary-card-mini-icon">💰</div>
-                        <div class="summary-card-mini-content">
-                            <div class="summary-card-mini-label">Price</div>
-                            <div class="summary-card-mini-value" id="underlyingPrice">-</div>
-                        </div>
-                    </div>
-                    <div class="summary-card-mini">
-                        <div class="summary-card-mini-icon">📊</div>
-                        <div class="summary-card-mini-content">
-                            <div class="summary-card-mini-label">IV%</div>
-                            <div class="summary-card-mini-value" id="ivpDisplay">-</div>
-                        </div>
-                    </div>
-                    <div class="summary-card-mini summary-card-mini-highlight">
-                        <div class="summary-card-mini-icon">🎯</div>
-                        <div class="summary-card-mini-content">
-                            <div class="summary-card-mini-label">Found</div>
-                            <div class="summary-card-mini-value" id="totalSpreads">-</div>
-                        </div>
+                <!-- Right: AI Market View Badge (compact inline) - hidden for now -->
+                <div class="controls-right" id="aiScoreBox" role="region" aria-label="AI Market View" style="display: none;">
+                    <div class="ai-badge-compact">
+                        <span class="ai-badge-icon">🤖</span>
+                        <span class="ai-badge-symbol" id="aiScoreSymbol">SPY</span>
+                        <span class="ai-badge-rating" id="aiScoreRating" role="status" aria-live="polite">-</span>
                     </div>
                 </div>
             </div>
-
+            <!-- ROW 2: Compact micro-tiles (Symbol, Price, IV%, Found) -->
+            <div class="controls-row-2" id="infoCards" style="display: none;">
+                <div class="micro-tile">
+                    <span class="micro-tile-label">SYMBOL</span>
+                    <span class="micro-tile-value" id="symbolDisplay">-</span>
+                </div>
+                <div class="micro-tile">
+                    <span class="micro-tile-label">PRICE</span>
+                    <span class="micro-tile-value" id="underlyingPrice">-</span>
+                </div>
+                <div class="micro-tile">
+                    <span class="micro-tile-label">IV%</span>
+                    <span class="micro-tile-value" id="ivpDisplay">-</span>
+                </div>
+                <div class="micro-tile micro-tile-highlight">
+                    <span class="micro-tile-label">FOUND</span>
+                    <span class="micro-tile-value" id="totalSpreads">-</span>
+                </div>
+            </div>
             <!-- Hidden default values for backend compatibility -->
             <input type="hidden" id="minDte" value="14">
             <input type="hidden" id="maxDte" value="45">
@@ -143,7 +121,7 @@
                         <p class="results-table-subtitle">Top 20 spreads ranked by AI Score</p>
                         <div class="simulator-hint-banner">
                             <span class="simulator-hint-icon">👆</span>
-                            <span class="simulator-hint-text">Click any row to simulate P/L</span>
+                            <span class="simulator-hint-text">Select a row to explore with AI</span>
                         </div>
                     </div>
                     <div class="table-scroll-container">
@@ -179,7 +157,7 @@
                         <p class="results-table-subtitle">Top 20 spreads ranked by AI Score</p>
                         <div class="simulator-hint-banner">
                             <span class="simulator-hint-icon">👆</span>
-                            <span class="simulator-hint-text">Click any row to simulate P/L</span>
+                            <span class="simulator-hint-text">Select a row to explore with AI</span>
                         </div>
                     </div>
                     <div class="table-scroll-container">
@@ -217,106 +195,6 @@
                     </ul>
                 </div>
             </section>
-
-            <!-- P/L Simulator Section (Right side on desktop) -->
-            <section class="simulator-section" id="spreadSimulator" style="display: none;">
-            <div class="simulator-header">
-                <div class="simulator-header-left">
-                    <h2 class="simulator-title">P/L Simulator</h2>
-                    <div class="ai-explainer-btn-container ai-explainer-btn-inline" id="aiExplainerBtnContainer"></div>
-                </div>
-                <button class="simulator-close" id="closeSimulator" aria-label="Close simulator">&times;</button>
-            </div>
-
-            <!-- Selected Spread Info -->
-            <div class="simulator-spread-info" id="simSpreadInfo">
-                <div class="spread-info-grid">
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Symbol</div>
-                        <div class="spread-info-value" id="simSymbol">-</div>
-                    </div>
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Type</div>
-                        <div class="spread-info-value" id="simType">-</div>
-                    </div>
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Expiration</div>
-                        <div class="spread-info-value" id="simExpiration">-</div>
-                    </div>
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Short Strike</div>
-                        <div class="spread-info-value" id="simShortStrike">-</div>
-                    </div>
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Long Strike</div>
-                        <div class="spread-info-value" id="simLongStrike">-</div>
-                    </div>
-                    <div class="spread-info-item">
-                        <div class="spread-info-label">Net Credit</div>
-                        <div class="spread-info-value" id="simNetCredit">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Summary - Compact -->
-            <div class="simulator-action-compact" id="simActionSummary">
-                <div class="action-compact-line" id="simProfitCondition">
-                    <span class="action-compact-icon">💡</span>
-                    <span class="action-compact-text">Profit range at expiration: <strong id="simProfitRange">-</strong></span>
-                </div>
-                <div class="action-compact-line" id="simLegsLine">
-                    <span class="action-compact-icon">🛠</span>
-                    <span class="action-compact-text">Legs: <span id="simLegsText">-</span></span>
-                </div>
-            </div>
-
-            <!-- Summary Metrics -->
-            <div class="simulator-summary" id="simSummary">
-                <div class="sim-summary-card sim-summary-gain">
-                    <div class="sim-summary-label">Max Gain</div>
-                    <div class="sim-summary-value positive" id="simMaxGain">-</div>
-                </div>
-                <div class="sim-summary-card sim-summary-loss">
-                    <div class="sim-summary-label">Max Loss</div>
-                    <div class="sim-summary-value negative" id="simMaxLoss">-</div>
-                </div>
-                <div class="sim-summary-card sim-summary-be">
-                    <div class="sim-summary-label">Breakeven</div>
-                    <div class="sim-summary-value" id="simBreakeven">-</div>
-                    <div class="sim-summary-hint" id="simBreakevenPct">-</div>
-                </div>
-            </div>
-
-            <!-- P/L Table -->
-            <div class="simulator-table-container">
-                <h3 class="simulator-table-title">P/L by Price Move</h3>
-                <div class="table-scroll-container">
-                    <table class="data-table simulator-data-table">
-                        <thead>
-                            <tr>
-                                <th class="col-pct-move">% Move</th>
-                                <th class="col-price">Price at Exp</th>
-                                <th class="col-pl">P/L per Spread</th>
-                            </tr>
-                        </thead>
-                        <tbody id="simTableBody"></tbody>
-                    </table>
-                </div>
-                <button class="table-toggle-btn" id="togglePayoffTable" style="display: none;">
-                    <span class="toggle-icon">&#9660;</span>
-                    <span class="toggle-text">Show full P/L table</span>
-                </button>
-            </div>
-
-            <!-- Loading state for simulator -->
-            <div id="simLoadingState" class="sim-loading" style="display: none;">
-                <div class="loading-spinner"></div>
-                <span>Calculating P/L...</span>
-            </div>
-
-            <!-- AI Explainer Panel Container -->
-            <div id="aiExplainerPanelContainer"></div>
-        </section>
         </div><!-- End page-layout -->
 
         <!-- Legend Section - Cleaner layout -->
@@ -358,7 +236,6 @@
         <p>Option Chain Analysis - For educational purposes only. Not financial advice.</p>
     </footer>
 
-    <script src="/static/js/ai-explainer.js"></script>
     <script src="/static/js/credit_spreads.js"></script>
 </body>
 </html>

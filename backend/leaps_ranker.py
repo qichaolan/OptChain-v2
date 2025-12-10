@@ -28,6 +28,7 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yaml
+from scipy.stats import norm
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -666,6 +667,75 @@ def compute_compounded_target_pct(annual_target_pct: float, dte: int) -> float:
     return effective_target_pct
 
 
+def compute_greeks(
+    df: pd.DataFrame,
+    underlying_price: float,
+    risk_free_rate: float = 0.05,
+) -> pd.DataFrame:
+    """
+    Calculate Black-Scholes Greeks for call options.
+
+    Args:
+        df: Options DataFrame with 'strike', 'dte', and 'implied_volatility' columns.
+        underlying_price: Current price of the underlying asset.
+        risk_free_rate: Risk-free interest rate (default 5%).
+
+    Returns:
+        DataFrame with delta, gamma, theta, vega columns added.
+    """
+    df = df.copy()
+
+    # Check required columns exist
+    required_cols = ["strike", "dte", "implied_volatility"]
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        logger.warning(f"Missing columns for Greek calculation: {missing_cols}")
+        return df
+
+    # Convert columns to numeric
+    S = underlying_price
+    K = pd.to_numeric(df["strike"], errors="coerce")
+    T = pd.to_numeric(df["dte"], errors="coerce") / 365.0  # Convert days to years
+    sigma = pd.to_numeric(df["implied_volatility"], errors="coerce")
+    r = risk_free_rate
+
+    # Avoid division by zero and invalid values
+    # Set minimum time to 1 day and minimum volatility to 1%
+    T = T.clip(lower=1/365)
+    sigma = sigma.clip(lower=0.01)
+
+    # Black-Scholes d1 and d2
+    sqrt_T = np.sqrt(T)
+    d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt_T)
+    d2 = d1 - sigma * sqrt_T
+
+    # Greeks for call options
+    # Delta: N(d1)
+    df["delta"] = norm.cdf(d1)
+
+    # Gamma: N'(d1) / (S * sigma * sqrt(T))
+    df["gamma"] = norm.pdf(d1) / (S * sigma * sqrt_T)
+
+    # Theta: -(S * N'(d1) * sigma) / (2 * sqrt(T)) - r * K * e^(-rT) * N(d2)
+    # Expressed as daily decay (divide by 365)
+    theta_annual = (
+        -(S * norm.pdf(d1) * sigma) / (2 * sqrt_T)
+        - r * K * np.exp(-r * T) * norm.cdf(d2)
+    )
+    df["theta"] = theta_annual / 365  # Daily theta
+
+    # Vega: S * sqrt(T) * N'(d1)
+    # Expressed as change per 1% IV change (divide by 100)
+    df["vega"] = S * sqrt_T * norm.pdf(d1) / 100
+
+    # Clean up NaN/inf values
+    for col in ["delta", "gamma", "theta", "vega"]:
+        df[col] = df[col].replace([np.inf, -np.inf], np.nan)
+
+    logger.info(f"Calculated Greeks for {len(df)} contracts")
+    return df
+
+
 def compute_metrics(
     df: pd.DataFrame,
     underlying_price: float,
@@ -721,11 +791,12 @@ def compute_metrics(
     # Compute cost per contract
     df["cost"] = df["premium"] * contract_size
 
-    # Compute ROI at target (as percentage)
+    # Compute ROI at target (as decimal: 1.0 = 100% ROI)
+    # Formula: (Payoff - Cost) / Cost
     # Avoid division by zero - set ROI to 0 for zero-cost contracts
     df["roi_target"] = np.where(
         df["cost"] > 0,
-        ((df["payoff_target"] - df["cost"]) / df["cost"]) * 100,
+        (df["payoff_target"] - df["cost"]) / df["cost"],
         0.0
     )
 
@@ -754,6 +825,10 @@ def compute_metrics(
 
     # Final safety check - ensure score is never NaN
     df["score"] = df["score"].fillna(0.0)
+
+    # Calculate Greeks if not already present
+    if "delta" not in df.columns or df["delta"].isna().all():
+        df = compute_greeks(df, underlying_price)
 
     # Ensure numeric columns for volume and open interest
     for col in ["open_interest", "volume"]:
@@ -858,16 +933,16 @@ def _normalize_roi_score(df: pd.DataFrame) -> pd.DataFrame:
     Normalize ROI into a 0-1 score using logarithmic scaling.
 
     Uses log scaling to better differentiate high-ROI options:
-    - ROI <= 0%: score = 0.0
-    - ROI = 100%: score ~= 0.5 (anchor point)
-    - ROI = 500%: score ~= 0.85
-    - ROI = 1000%+: score -> 1.0
+    - ROI <= 0: score = 0.0
+    - ROI = 1.0 (100%): score ~= 0.5 (anchor point)
+    - ROI = 5.0 (500%): score ~= 0.85
+    - ROI = 10.0 (1000%)+: score -> 1.0
 
     Log scaling helps separate OTM options with high potential ROI
     from ITM options with lower but safer ROI.
 
     Args:
-        df: Options DataFrame with 'roi_target' column.
+        df: Options DataFrame with 'roi_target' column (decimal: 1.0 = 100% ROI).
 
     Returns:
         DataFrame with 'roi_score' column added.
@@ -877,15 +952,15 @@ def _normalize_roi_score(df: pd.DataFrame) -> pd.DataFrame:
     roi = df["roi_target"]
 
     # Use log scaling for better differentiation at high ROI values
-    # Formula: score = log(1 + roi/100) / log(1 + max_roi/100)
+    # Formula: score = log(1 + roi) / log(1 + max_roi)
     # This gives more separation between 100%, 200%, 500%, 1000% ROI options
 
-    # Floor: ROI <= 0% gets score 0
+    # Floor: ROI <= 0 gets score 0
     roi_adjusted = roi.clip(lower=0)
 
-    # Log scale: log(1 + x) where x is ROI as decimal (100% = 1.0)
-    roi_decimal = roi_adjusted / 100.0
-    log_roi = np.log1p(roi_decimal)  # log(1 + roi_decimal)
+    # Log scale: log(1 + x) where x is ROI as decimal (1.0 = 100%)
+    # roi_target is already in decimal form
+    log_roi = np.log1p(roi_adjusted)  # log(1 + roi)
 
     # Normalize to max in dataset
     log_max = log_roi.max()
@@ -945,7 +1020,13 @@ def format_output(
             "ease_score",
             "roi_score",
             "score",
+            "last_trade_price",
+            "bid",
+            "ask",
             "delta",
+            "gamma",
+            "theta",
+            "vega",
             "implied_volatility",
             "open_interest",
             "volume",
@@ -967,6 +1048,9 @@ def format_output(
         "cost",
         "payoff_target",
         "mark",
+        "last_trade_price",
+        "bid",
+        "ask",
     ]
     pct_cols = [
         "roi_target",
@@ -974,6 +1058,9 @@ def format_output(
         "roi_score",
         "score",
         "delta",
+        "gamma",
+        "theta",
+        "vega",
         "implied_volatility",
     ]
 

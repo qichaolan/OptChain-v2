@@ -32,8 +32,6 @@ let state = {
     payoffCache: {},  // Cache payoff data by condor ID
     underlyingPrice: 0,
     fetchInProgress: false,  // Prevents double-clicking
-    aiExplainerController: null,  // AI Explainer controller instance
-    payoffTableExpanded: false,  // Whether P/L table is expanded
 };
 
 // ============================================
@@ -64,24 +62,6 @@ const elements = {
     noResultsState: document.getElementById('noResultsState'),
     errorDisplay: document.getElementById('errorDisplay'),
     legendSection: document.getElementById('legendSection'),
-
-    // Payoff chart section
-    payoffSection: document.getElementById('payoffSection'),
-    closePayoff: document.getElementById('closePayoff'),
-    payoffSymbol: document.getElementById('payoffSymbol'),
-    payoffExpiration: document.getElementById('payoffExpiration'),
-    payoffPutSpread: document.getElementById('payoffPutSpread'),
-    payoffCallSpread: document.getElementById('payoffCallSpread'),
-    payoffCredit: document.getElementById('payoffCredit'),
-    payoffRiskReward: document.getElementById('payoffRiskReward'),
-    payoffProfitRange: document.getElementById('payoffProfitRange'),
-    payoffLegsText: document.getElementById('payoffLegsText'),
-    payoffMaxGain: document.getElementById('payoffMaxGain'),
-    payoffMaxLoss: document.getElementById('payoffMaxLoss'),
-    payoffBreakevens: document.getElementById('payoffBreakevens'),
-    payoffTableBody: document.getElementById('payoffTableBody'),
-    payoffLoadingState: document.getElementById('payoffLoadingState'),
-    togglePayoffTable: document.getElementById('togglePayoffTable'),
 };
 
 // ============================================
@@ -90,42 +70,22 @@ const elements = {
 
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    initializeAiExplainer();
     // Auto-fetch on page load
     fetchIronCondors();
-});
 
-/**
- * Initialize the AI Explainer controller for Iron Condor Simulator.
- */
-function initializeAiExplainer() {
-    // Check if AiExplainerController is available
-    if (typeof AiExplainerController !== 'undefined') {
-        state.aiExplainerController = new AiExplainerController({
+    // Initialize AI tooltips for metric explanations
+    if (typeof initAiTooltips === 'function') {
+        initAiTooltips({
             pageId: 'iron_condor_screener',
-            contextType: 'spread_simulator',
-            buttonContainerId: 'aiExplainerButtonContainer',
-            panelContainerId: 'aiExplainerPanelContainer',
+            getMetadata: () => state.selectedCondor ? getPayoffChartMetadata(state.selectedCondor) : null,
         });
-    } else {
-        console.warn('AiExplainerController not found. AI Explainer disabled.');
     }
-}
+});
 
 function setupEventListeners() {
     // Run screener button
     if (elements.runScreenerBtn) {
         elements.runScreenerBtn.addEventListener('click', fetchIronCondors);
-    }
-
-    // Close payoff button
-    if (elements.closePayoff) {
-        elements.closePayoff.addEventListener('click', closePayoffChart);
-    }
-
-    // Toggle P/L table expand/collapse
-    if (elements.togglePayoffTable) {
-        elements.togglePayoffTable.addEventListener('click', togglePayoffTableExpand);
     }
 
     // Re-render on window resize (debounced)
@@ -200,7 +160,7 @@ async function fetchIronCondors() {
     hideError();
     showLoading();
     setButtonLoading(true);
-    closePayoffChart();
+    clearSelection();
 
     try {
         const params = new URLSearchParams({
@@ -246,34 +206,13 @@ async function fetchIronCondors() {
 async function fetchPayoff(condorId) {
     if (!condorId) return;
 
-    // Clear AI Explainer panel when selecting a new condor
-    if (state.aiExplainerController) {
-        state.aiExplainerController.clearPanel();
-    }
-
-    // Reset table to collapsed state when selecting a new condor
-    state.payoffTableExpanded = false;
-
     state.selectedCondorId = condorId;
 
     // Check cache first
     if (state.payoffCache[condorId]) {
         state.payoffData = state.payoffCache[condorId];
-        updatePayoffUI(state.payoffData);
-        if (elements.payoffSection) {
-            elements.payoffSection.style.display = 'block';
-        }
-        if (isMobile() && elements.payoffSection) {
-            elements.payoffSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        sendPayoffToParent(state.payoffData);
         return;
-    }
-
-    if (elements.payoffSection) {
-        elements.payoffSection.style.display = 'block';
-    }
-    if (elements.payoffLoadingState) {
-        elements.payoffLoadingState.style.display = 'flex';
     }
 
     try {
@@ -304,21 +243,12 @@ async function fetchPayoff(condorId) {
 
         state.payoffData = data;
         state.payoffCache[condorId] = data;  // Cache for reuse
-        updatePayoffUI(data);
-
-        // Scroll to payoff section on mobile
-        if (isMobile() && elements.payoffSection) {
-            elements.payoffSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        sendPayoffToParent(data);
 
     } catch (err) {
         console.error('Error fetching payoff:', err);
         showError(err.message);
-        closePayoffChart();
-    } finally {
-        if (elements.payoffLoadingState) {
-            elements.payoffLoadingState.style.display = 'none';
-        }
+        clearSelection();
     }
 }
 
@@ -341,9 +271,9 @@ function updateUI(data) {
         elements.totalCondors.textContent = String(data.total_candidates || 0);
     }
 
-    // Show info cards
+    // Show info cards (using flex as they're now in the results header)
     if (elements.infoCards) {
-        elements.infoCards.style.display = 'grid';
+        elements.infoCards.style.display = 'flex';
     }
 
     hideLoading();
@@ -414,29 +344,64 @@ function renderTable(condors) {
         const pop = safeNumber(c.combined_pop);
         const score = safeNumber(c.combined_score);
 
+        // Issue #1: Color coding for ROC and POP
+        const rocClass = getRocColorClass(riskReward);
+        const popClass = getPopColorClass(pop);
+
         return `
             <tr data-condor-id="${escapeHtml(c.id)}" class="${rowClass}"
                 title="Click to see payoff chart" tabindex="0" role="button">
                 <td class="col-exp">${escapeHtml(c.expiration || '-')}</td>
-                <td class="col-dte">${safeNumber(c.dte, 0)}</td>
-                <td class="col-strike">${formatCurrency(shortPut, 0)}</td>
-                <td class="col-strike hide-mobile">${formatCurrency(longPut, 0)}</td>
-                <td class="col-strike">${formatCurrency(shortCall, 0)}</td>
-                <td class="col-strike hide-mobile">${formatCurrency(longCall, 0)}</td>
-                <td class="col-money">${formatCurrency(totalCredit, 2)}</td>
+                <td class="col-dte"><span data-ai-metric="dte" data-ai-value="${c.dte}" data-ai-label="Days to Expiration">${safeNumber(c.dte, 0)}</span></td>
+                <td class="col-strike">${formatStrike(shortPut)}</td>
+                <td class="col-strike hide-mobile">${formatStrike(longPut)}</td>
+                <td class="col-strike">${formatStrike(shortCall)}</td>
+                <td class="col-strike hide-mobile">${formatStrike(longCall)}</td>
+                <td class="col-money"><span data-ai-metric="credit" data-ai-value="${totalCredit}" data-ai-label="Net Credit">${formatCurrency(totalCredit, 2)}</span></td>
                 <td class="col-money hide-mobile">
-                    <span class="positive">+${formatCurrency(maxProfit, 0)}</span>
+                    <span class="positive" data-ai-metric="max_gain" data-ai-value="${maxProfit}" data-ai-label="Maximum Gain">+${formatCurrency(maxProfit, 0)}</span>
                     <span class="text-divider">/</span>
-                    <span class="negative">-${formatCurrency(maxLoss, 0)}</span>
+                    <span class="negative" data-ai-metric="max_loss" data-ai-value="${maxLoss}" data-ai-label="Maximum Loss">-${formatCurrency(maxLoss, 0)}</span>
                 </td>
-                <td class="col-pct">${formatPercent(riskReward, 0)}</td>
-                <td class="col-pct ${pop >= 0.60 ? 'positive' : ''}">${formatPercent(pop, 0)}</td>
+                <td class="col-pct"><span class="${rocClass}" data-ai-metric="roc" data-ai-value="${riskReward}" data-ai-label="Return on Capital">${formatPercent(riskReward, 1)}</span></td>
+                <td class="col-pct"><span class="${popClass}" data-ai-metric="pop" data-ai-value="${pop}" data-ai-label="Probability of Profit">${formatPercent(pop, 1)}</span></td>
                 <td class="col-score">
-                    <span class="score-badge ${getScoreClass(score)}">${formatNumber(score, 2)}</span>
+                    <span class="score-badge ${getScoreClass(score)}" data-ai-metric="score" data-ai-value="${score}" data-ai-label="Combined Score">${formatNumber(score, 2)}</span>
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+/**
+ * Get color class for ROC (Return on Capital) value
+ * High: >= 25%, Medium: 15-25%, Low: < 15%
+ */
+function getRocColorClass(roc) {
+    const rocPct = safeNumber(roc, 0);
+    if (rocPct >= 0.25) return 'roc-high';
+    if (rocPct >= 0.15) return 'roc-medium';
+    return 'roc-low';
+}
+
+/**
+ * Get color class for POP (Probability of Profit) value
+ * High: >= 60%, Medium: 50-60%, Low: < 50%
+ */
+function getPopColorClass(pop) {
+    const popPct = safeNumber(pop, 0);
+    if (popPct >= 0.60) return 'pop-high';
+    if (popPct >= 0.50) return 'pop-medium';
+    return 'pop-low';
+}
+
+/**
+ * Format strike price consistently - always show whole numbers with $ prefix
+ */
+function formatStrike(value) {
+    const num = safeNumber(value);
+    if (num === 0 && value !== 0 && value !== '0') return '-';
+    return '$' + Math.round(num);
 }
 
 function renderMobileCards(condors) {
@@ -461,7 +426,12 @@ function renderMobileCards(condors) {
         const maxProfit = safeNumber(c.max_profit);
         const maxLoss = safeNumber(c.max_loss);
         const pop = safeNumber(c.combined_pop);
+        const riskReward = safeNumber(c.risk_reward_ratio);
         const score = safeNumber(c.combined_score);
+
+        // Color classes for mobile cards
+        const popClass = getPopColorClass(pop);
+        const rocClass = getRocColorClass(riskReward);
 
         return `
             <div class="${cardClass}" data-condor-id="${escapeHtml(c.id)}"
@@ -469,9 +439,9 @@ function renderMobileCards(condors) {
                 <div class="mobile-card-header">
                     <div>
                         <div class="mobile-card-strikes">
-                            Put: ${formatCurrency(shortPut, 0)}/${formatCurrency(longPut, 0)}
+                            Put: ${formatStrike(shortPut)}/${formatStrike(longPut)}
                             &nbsp;|&nbsp;
-                            Call: ${formatCurrency(shortCall, 0)}/${formatCurrency(longCall, 0)}
+                            Call: ${formatStrike(shortCall)}/${formatStrike(longCall)}
                         </div>
                         <div class="mobile-card-exp">
                             ${escapeHtml(c.expiration || '-')} (${safeNumber(c.dte, 0)} DTE)
@@ -497,12 +467,16 @@ function renderMobileCards(condors) {
                         <div class="mobile-metric-value negative">-${formatCurrency(maxLoss, 0)}</div>
                     </div>
                     <div class="mobile-metric">
+                        <div class="mobile-metric-label">ROC</div>
+                        <div class="mobile-metric-value ${rocClass}">${formatPercent(riskReward, 1)}</div>
+                    </div>
+                    <div class="mobile-metric">
                         <div class="mobile-metric-label">POP</div>
-                        <div class="mobile-metric-value">${formatPercent(pop, 0)}</div>
+                        <div class="mobile-metric-value ${popClass}">${formatPercent(pop, 1)}</div>
                     </div>
                 </div>
                 <div class="mobile-card-action">
-                    <span class="tap-to-simulate">Tap to simulate P/L &rarr;</span>
+                    <span class="tap-to-simulate">Tap to explore with AI &rarr;</span>
                 </div>
             </div>
         `;
@@ -532,7 +506,8 @@ function highlightCard(condorId) {
     highlightRow(condorId);  // Same logic for both
 }
 
-function updatePayoffUI(data) {
+// Send payoff data to parent window via postMessage
+function sendPayoffToParent(data) {
     if (!data) return;
 
     // Safe value extraction
@@ -548,181 +523,86 @@ function updatePayoffUI(data) {
     const maxLoss = safeNumber(data.max_loss);
     const breakEvenLow = safeNumber(data.breakeven_low);
     const breakEvenHigh = safeNumber(data.breakeven_high);
-
-    // Update info grid
-    if (elements.payoffSymbol) {
-        elements.payoffSymbol.textContent = escapeHtml(symbol);
-    }
-    if (elements.payoffExpiration) {
-        elements.payoffExpiration.textContent = escapeHtml(expiration);
-    }
-    if (elements.payoffPutSpread) {
-        elements.payoffPutSpread.textContent =
-            `${formatCurrency(shortPut, 0)} / ${formatCurrency(longPut, 0)}`;
-    }
-    if (elements.payoffCallSpread) {
-        elements.payoffCallSpread.textContent =
-            `${formatCurrency(shortCall, 0)} / ${formatCurrency(longCall, 0)}`;
-    }
-    if (elements.payoffCredit) {
-        elements.payoffCredit.textContent = `${formatCurrency(totalCredit, 2)}/share`;
-    }
-    if (elements.payoffRiskReward) {
-        elements.payoffRiskReward.textContent = formatPercent(riskReward, 0);
-    }
-
-    // Update action summary - compact two-line format
-    if (elements.payoffProfitRange) {
-        elements.payoffProfitRange.textContent =
-            `${formatCurrency(breakEvenLow, 2)} – ${formatCurrency(breakEvenHigh, 2)}`;
-    }
-    if (elements.payoffLegsText) {
-        elements.payoffLegsText.innerHTML =
-            `Sell ${formatCurrency(shortPut, 0)} / Buy ${formatCurrency(longPut, 0)} puts` +
-            `<span class="action-separator">|</span>` +
-            `Sell ${formatCurrency(shortCall, 0)} / Buy ${formatCurrency(longCall, 0)} calls`;
-    }
-
-    // Update summary cards (these are per-contract values)
-    if (elements.payoffMaxGain) {
-        elements.payoffMaxGain.textContent = '+' + formatCurrency(maxProfit, 0);
-    }
-    if (elements.payoffMaxLoss) {
-        elements.payoffMaxLoss.textContent = '-' + formatCurrency(maxLoss, 0);
-    }
-    if (elements.payoffBreakevens) {
-        elements.payoffBreakevens.textContent =
-            `${formatCurrency(breakEvenLow, 2)} - ${formatCurrency(breakEvenHigh, 2)}`;
-    }
-
-    // Render table
     const points = Array.isArray(data.points) ? data.points : [];
-    renderPayoffTable(points);
 
-    // Update AI Explainer with Iron Condor context
-    if (state.aiExplainerController) {
-        state.aiExplainerController.setMetadata({
-            symbol: symbol,
-            underlying_price: state.underlyingPrice,
-            expiration: expiration,
-            short_put_strike: shortPut,
-            long_put_strike: longPut,
-            short_call_strike: shortCall,
-            long_call_strike: longCall,
-            net_credit: totalCredit,
-            max_profit: maxProfit,
-            max_loss: maxLoss,
-            breakeven_low: breakEvenLow,
-            breakeven_high: breakEvenHigh,
-            risk_reward_ratio: riskReward,
-            points: points.map(p => ({
-                move_pct: p.move_pct,
-                price: p.price,
-                payoff: p.payoff,
-                roi: p.roi,
-            })),
-        });
+    // Get additional data from the selected condor in state (from list API)
+    const selectedCondor = state.condors.find(c => c.id === state.selectedCondorId);
+    const dte = safeNumber(data.dte || (selectedCondor ? selectedCondor.dte : 0), 0);
+    const profitZoneWidth = breakEvenHigh - breakEvenLow;
+
+    // Extract new fields from selectedCondor (populated by list API)
+    const width = selectedCondor ? safeNumber(selectedCondor.width) : 0;
+    const ror = selectedCondor ? safeNumber(selectedCondor.ror) : 0;
+    const combinedPop = selectedCondor ? safeNumber(selectedCondor.combined_pop) : 0;
+    const shortPutDelta = selectedCondor ? safeNumber(selectedCondor.short_put_delta) : 0;
+    const shortCallDelta = selectedCondor ? safeNumber(selectedCondor.short_call_delta) : 0;
+    const distToShortPut = selectedCondor ? safeNumber(selectedCondor.dist_to_short_put) : 0;
+    const distToShortCall = selectedCondor ? safeNumber(selectedCondor.dist_to_short_call) : 0;
+    const distToLowerBE = selectedCondor ? safeNumber(selectedCondor.dist_to_lower_be) : 0;
+    const distToUpperBE = selectedCondor ? safeNumber(selectedCondor.dist_to_upper_be) : 0;
+
+    // Use camelCase keys to match TypeScript validation schema
+    const metadata = {
+        symbol: symbol,
+        underlyingPrice: state.underlyingPrice,
+        expiration: expiration,
+        dte: dte,
+        shortPutStrike: shortPut,
+        longPutStrike: longPut,
+        shortCallStrike: shortCall,
+        longCallStrike: longCall,
+        width: width,
+        netCredit: totalCredit * 100,  // Convert per-share to per-contract (dollars)
+        maxGain: maxProfit,
+        maxLoss: maxLoss,
+        lowerBreakeven: breakEvenLow,
+        upperBreakeven: breakEvenHigh,
+        profitZoneWidth: profitZoneWidth,
+        // Risk/Reward metrics
+        ror: ror,
+        riskRewardRatio: riskReward,
+        // Probability
+        probProfit: combinedPop,
+        probLoss: 1 - combinedPop,
+        // Greeks (deltas)
+        shortPutDelta: shortPutDelta,
+        shortCallDelta: shortCallDelta,
+        // Distance metrics
+        distToShortPut: distToShortPut,
+        distToShortCall: distToShortCall,
+        distToLowerBE: distToLowerBE,
+        distToUpperBE: distToUpperBE,
+        // Payoff curve points
+        points: points.map(p => ({
+            movePct: p.move_pct,
+            price: p.price,
+            payoff: p.payoff,
+            roi: p.roi,
+        })),
+    };
+
+    // Send simulation data to parent window (Next.js wrapper)
+    if (window.parent !== window) {
+        console.log('[IronCondor Backend] Sending postMessage with metadata:', metadata);
+        window.parent.postMessage({
+            type: 'IRON_CONDOR_SIMULATION_UPDATE',
+            payload: metadata,
+        }, '*');
+        console.log('[IronCondor Backend] postMessage sent');
+    } else {
+        console.log('[IronCondor Backend] Not in iframe, skipping postMessage');
     }
 }
 
-function renderPayoffTable(points) {
-    if (!elements.payoffTableBody) return;
-
-    if (!points || points.length === 0) {
-        elements.payoffTableBody.innerHTML =
-            '<tr><td colspan="4" class="text-center">No data</td></tr>';
-        if (elements.togglePayoffTable) {
-            elements.togglePayoffTable.style.display = 'none';
-        }
-        return;
-    }
-
-    // Key moves to show in collapsed state: -5%, 0%, +5%
-    const keyMoves = [-0.05, 0, 0.05];
-
-    // Filter points for collapsed view
-    let displayPoints = points;
-    if (!state.payoffTableExpanded) {
-        displayPoints = points.filter(p => {
-            const movePct = safeNumber(p.move_pct, 0);
-            return keyMoves.some(key => Math.abs(movePct - key) < 0.005);
-        });
-        // Fallback: if no key points found, show first 3 points
-        if (displayPoints.length === 0) {
-            displayPoints = points.slice(0, 3);
-        }
-    }
-
-    elements.payoffTableBody.innerHTML = displayPoints.map(point => {
-        const payoff = safeNumber(point.payoff, 0);
-        const price = safeNumber(point.price, 0);
-        const movePct = safeNumber(point.move_pct, 0) * 100;
-        const roi = safeNumber(point.roi, 0) * 100;
-
-        const plClass = payoff >= 0 ? 'positive' : 'negative';
-        const plPrefix = payoff >= 0 ? '+' : '';
-        const pctPrefix = movePct >= 0 ? '+' : '';
-        const roiPrefix = roi >= 0 ? '+' : '';
-
-        return `
-            <tr>
-                <td class="col-pct-move">${pctPrefix}${movePct.toFixed(0)}%</td>
-                <td class="col-price">${formatCurrency(price, 2)}</td>
-                <td class="col-pl ${plClass}">${plPrefix}${formatCurrency(payoff, 0)}</td>
-                <td class="col-pct ${plClass}">${roiPrefix}${roi.toFixed(1)}%</td>
-            </tr>
-        `;
-    }).join('');
-
-    // Show/hide toggle button and update its text
-    if (elements.togglePayoffTable) {
-        // Only show toggle if there are more points than displayed
-        if (points.length > displayPoints.length || state.payoffTableExpanded) {
-            elements.togglePayoffTable.style.display = 'block';
-            const icon = elements.togglePayoffTable.querySelector('.toggle-icon');
-            const text = elements.togglePayoffTable.querySelector('.toggle-text');
-            if (state.payoffTableExpanded) {
-                if (icon) icon.innerHTML = '&#9650;';  // Up arrow
-                if (text) text.textContent = 'Show less';
-            } else {
-                if (icon) icon.innerHTML = '&#9660;';  // Down arrow
-                if (text) text.textContent = 'Show full P/L table';
-            }
-        } else {
-            elements.togglePayoffTable.style.display = 'none';
-        }
-    }
-}
-
-/**
- * Toggle P/L table between collapsed (3 key rows) and expanded (all rows) state.
- */
-function togglePayoffTableExpand() {
-    state.payoffTableExpanded = !state.payoffTableExpanded;
-
-    // Re-render the table with current payoff data
-    if (state.payoffData && Array.isArray(state.payoffData.points)) {
-        renderPayoffTable(state.payoffData.points);
-    }
-}
-
-function closePayoffChart() {
-    if (elements.payoffSection) {
-        elements.payoffSection.style.display = 'none';
-    }
+// Clear selection state
+function clearSelection() {
     state.selectedCondorId = null;
     state.payoffData = null;
-    state.payoffTableExpanded = false;  // Reset to collapsed when closing
 
     // Remove selection highlighting
     document.querySelectorAll('.selected-for-sim').forEach(el => {
         el.classList.remove('selected-for-sim');
     });
-
-    // Clear AI Explainer panel
-    if (state.aiExplainerController) {
-        state.aiExplainerController.clearPanel();
-    }
 }
 
 // ============================================

@@ -1,20 +1,30 @@
 /* LEAPS Ranker - Responsive Styles */
 
 :root {
-    /* Unified Blue Palette (Issue 5) */
+    /* Unified Color Palette - Chain Analysis Style */
     --primary-color: #2563eb;    /* blue-600 - Primary actions */
     --primary-dark: #1d4ed8;     /* blue-700 - Hover states */
     --primary-light: #3b82f6;    /* blue-500 - Secondary accents */
-    --success-color: #16a34a;    /* green-600 - Softer green (Issue 6) */
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --bg-color: #f7f9fc;         /* Slightly lighter (Issue 7) */
+    --success-color: #22c55e;    /* green-500 - Positive/Bullish */
+    --success-dark: #16a34a;     /* green-600 - Darker green */
+    --danger-color: #ef4444;     /* red-500 - Negative/Bearish */
+    --warning-color: #f59e0b;    /* amber-500 - Warnings */
+    --purple-color: #8b5cf6;     /* violet-500 - Iron Condors/Neutral */
+    --bg-color: #f8fafc;         /* slate-50 - Page background */
     --card-bg: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border-color: #e2e8f0;
+    --text-primary: #1e293b;     /* slate-800 */
+    --text-secondary: #64748b;   /* slate-500 */
+    --text-muted: #94a3b8;       /* slate-400 */
+    --border-color: #e2e8f0;     /* slate-200 */
+    --border-light: #f1f5f9;     /* slate-100 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
 * {
@@ -60,6 +70,12 @@ body {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--primary-color);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.logo:hover {
+    opacity: 0.8;
 }
 
 .logo span {
@@ -620,6 +636,702 @@ tr.selected {
     margin-bottom: 1rem;
 }
 
+/* ============================================
+   UNIFIED DESIGN SYSTEM - Chain Analysis Style
+   Applies consistent styling across all pages:
+   LEAPS, Credit Spreads, Iron Condors
+   ============================================ */
+
+/* Page Layout Container */
+.page-layout,
+.iron-condor-layout {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+/* Unified Page Header */
+.page-header-compact {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.page-title-compact {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.page-subtitle-compact {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Unified Controls Card - Matches Chain Analysis input section */
+.controls-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.controls-card-inline {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.875rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.controls-inline-row,
+.controls-row-1 .controls-left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.control-group label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+}
+
+.select-compact {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    min-width: 90px;
+}
+
+.select-compact:hover {
+    border-color: var(--primary-light);
+}
+
+.select-compact:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.control-divider {
+    color: var(--border-color);
+    font-weight: 300;
+    user-select: none;
+}
+
+/* Unified Button Styles - Matches Chain Analysis blue Refresh button */
+.btn-compact,
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-compact:hover,
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-compact:active,
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-icon {
+    font-size: 0.75rem;
+}
+
+/* Unified Data Table - Matches Chain Analysis options table */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-table th {
+    background: var(--bg-color);
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.data-table td {
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+}
+
+.data-table tbody tr {
+    transition: background-color 0.1s ease;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--bg-color);
+}
+
+.data-table tbody tr.selected,
+.data-table tbody tr.selected-for-sim {
+    background: rgba(37, 99, 235, 0.08);
+    border-left: 3px solid var(--primary-color);
+}
+
+/* Numeric columns - monospace font */
+.data-table .col-strike,
+.data-table .col-money,
+.data-table .col-pct,
+.data-table .col-dte,
+.data-table .col-delta,
+.data-table .col-score {
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+.data-table .col-exp {
+    white-space: nowrap;
+}
+
+/* Table scroll container */
+.table-scroll-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 300px);
+}
+
+/* Unified Info Pills - Matches Chain Analysis EXP/DTE/STRIKE cards */
+.info-pill,
+.micro-tile {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    min-width: 65px;
+}
+
+.info-pill-label,
+.micro-tile-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 0.125rem;
+}
+
+.info-pill-value,
+.micro-tile-value {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.info-pill-highlight,
+.micro-tile-highlight {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.info-pill-highlight .info-pill-value,
+.micro-tile-highlight .micro-tile-value {
+    color: var(--primary-color);
+}
+
+/* Results Header - Matches Chain Analysis "Options Chain" header */
+.results-table-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.results-table-header-flex {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.results-table-header-left {
+    flex: 1;
+    min-width: 200px;
+}
+
+.results-table-header-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.results-table-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.results-table-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* AI Badge - Unified styling */
+.ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1875rem 0.5rem;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Strategy Badges - Bullish/Bearish/Neutral */
+.spread-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.spread-badge-bullish {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success-color);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.spread-badge-bearish {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.spread-badge-neutral {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple-color);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Simulator Hint Banner - Action button */
+.simulator-hint-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.simulator-hint-banner:hover {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.25);
+}
+
+.simulator-hint-icon {
+    font-size: 0.875rem;
+}
+
+/* Positive/Negative value colors - Matches Chain Analysis green/red */
+.positive,
+.value-positive {
+    color: var(--success-color);
+}
+
+.negative,
+.value-negative {
+    color: var(--danger-color);
+}
+
+/* ROC/POP Color Classes */
+.roc-high,
+.pop-high {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.roc-medium,
+.pop-medium {
+    color: var(--warning-color);
+    font-weight: 600;
+}
+
+.roc-low,
+.pop-low {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+/* Score Badge - Unified */
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    min-width: 2.5rem;
+}
+
+.score-high {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success-color);
+}
+
+.score-medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+}
+
+.score-low {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+}
+
+/* Error Banner */
+.error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--danger-color);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.error-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.loading-text {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.loading-subtext {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+/* Legend Section */
+.legend-card {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.legend-header {
+    margin-bottom: 0.75rem;
+}
+
+.legend-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.legend-term {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 50px;
+}
+
+.legend-def {
+    color: var(--text-secondary);
+}
+
+/* Unified Empty State */
+.empty-state-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0.5rem 0 0.25rem;
+}
+
+.empty-state-text {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+}
+
+.empty-state-tips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: left;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.tip-icon {
+    flex-shrink: 0;
+}
+
+/* Mobile Card View for Tables */
+.mobile-cards-container {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .table-scroll-container {
+        display: none;
+    }
+
+    .mobile-cards-container {
+        display: block;
+        padding: 0.5rem;
+    }
+
+    .mobile-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .mobile-card.selected {
+        border-color: var(--primary-color);
+        background: rgba(37, 99, 235, 0.04);
+    }
+
+    .mobile-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .mobile-card-strikes {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+    }
+
+    .mobile-card-exp {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+
+    .mobile-card-score {
+        text-align: right;
+    }
+
+    .mobile-card-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+    }
+
+    .mobile-metric {
+        text-align: center;
+    }
+
+    .mobile-metric-label {
+        font-size: 0.625rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.125rem;
+    }
+
+    .mobile-metric-value {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+    }
+
+    .mobile-card-action {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-light);
+        text-align: center;
+    }
+
+    .tap-to-simulate {
+        font-size: 0.75rem;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+}
+
+/* Responsive Controls */
+@media (max-width: 768px) {
+    .controls-inline-row,
+    .controls-row-1 .controls-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-group {
+        width: 100%;
+    }
+
+    .select-compact {
+        width: 100%;
+    }
+
+    .control-divider {
+        display: none;
+    }
+
+    .btn-compact,
+    .btn-primary {
+        width: 100%;
+    }
+
+    .results-table-header-flex {
+        flex-direction: column;
+    }
+
+    .results-table-header-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .info-pill,
+    .micro-tile {
+        flex: 1;
+    }
+}
+
+/* End Unified Design System */
+
 /* Tabs */
 .tabs {
     display: flex;
@@ -1072,11 +1784,264 @@ tr[data-contract] {
 .controls-card {
     background: var(--card-bg);
     border-radius: 10px;
-    padding: 0.875rem 1rem;
+    padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
-    max-width: 900px; /* Limit width on desktop */
+}
+
+/* Inline Controls Layout - Single Row */
+.controls-card-inline {
+    padding: 0.625rem 1rem;
+}
+
+.controls-inline-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.control-divider {
+    color: #cbd5e1;
+    font-size: 1rem;
+    font-weight: 300;
+    user-select: none;
+    margin-bottom: 0.35rem;
+}
+
+/* Two-Row Layout for Controls */
+.controls-row-1 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.controls-left {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+}
+
+.controls-right {
+    display: flex;
+    align-items: center;
+}
+
+.controls-hint-text {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-style: italic;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.control-group label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.select-compact {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: #f8fafc;
+    color: #0f172a;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 36px;
+    min-width: 140px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+
+.select-compact:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    background: #fff;
+}
+
+.btn-compact {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 8px;
+}
+
+/* Compact AI Badge for Row 1 - matches metric tile styling */
+.ai-badge-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    height: 36px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.ai-badge-compact .ai-badge-icon {
+    font-size: 0.9rem;
+}
+
+.ai-badge-compact .ai-badge-symbol {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.8rem;
+}
+
+.ai-badge-compact .ai-badge-rating {
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.ai-badge-compact .ai-badge-date {
+    font-size: 0.65rem;
+    color: #64748b;
+}
+
+.ai-badge-btn {
+    background: none;
+    border: none;
+    color: #dc2626;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.ai-badge-btn:hover {
+    background: rgba(220, 38, 38, 0.1);
+}
+
+/* Row 2: Micro Tiles - 4-column grid */
+.controls-row-2 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.micro-tile {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: #f1f5f9;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.micro-tile-label {
+    font-size: 0.5625rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.micro-tile-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.micro-tile-value.positive {
+    color: #059669;
+}
+
+.micro-tile-highlight {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.micro-tile-highlight .micro-tile-value.positive {
+    color: #047857;
+}
+
+/* Responsive: Tablet - 2x2 grid */
+@media (max-width: 768px) {
+    .controls-row-1 {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .controls-left {
+        flex-wrap: wrap;
+    }
+
+    .controls-right {
+        justify-content: flex-start;
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+
+    .controls-row-2 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .micro-tile {
+        padding: 0.625rem 0.75rem;
+    }
+}
+
+/* Responsive: Mobile - 2x2 grid, full-width AI badge */
+@media (max-width: 480px) {
+    .controls-row-2 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .micro-tile {
+        padding: 0.5rem 0.625rem;
+        font-size: 0.75rem;
+    }
+
+    .micro-tile-label {
+        font-size: 0.5625rem;
+    }
+
+    .micro-tile-value {
+        font-size: 0.8125rem;
+    }
+
+    .ai-badge-compact {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 .controls-card-header {
@@ -1516,6 +2481,67 @@ tr[data-contract] {
     background: var(--bg-color);
 }
 
+/* Flex layout for header with info on right */
+.results-table-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.results-table-header-left {
+    flex: 1;
+    min-width: 200px;
+}
+
+.results-table-header-right {
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+}
+
+/* Info Pills - Compact inline data display (horizontal layout) */
+.info-pill {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.info-pill-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1;
+}
+
+.info-pill-value {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+.info-pill-highlight {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #93c5fd;
+}
+
+.info-pill-highlight .info-pill-value {
+    color: #1d4ed8;
+}
+
 .results-table-title {
     font-size: 1rem;
     font-weight: 600;
@@ -1586,13 +2612,13 @@ tr[data-contract] {
 }
 
 .data-table th {
-    padding: 0.75rem 0.875rem;
+    padding: 0.875rem 1.125rem;
     text-align: left;
-    font-size: 0.6875rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-secondary);
+    letter-spacing: 0.03em;
+    color: #374151;
     background: var(--card-bg);
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
@@ -1602,9 +2628,18 @@ tr[data-contract] {
 }
 
 .data-table td {
-    padding: 0.75rem 0.875rem;
+    padding: 0.875rem 1.125rem;
     border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
+    font-size: 0.8125rem;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+/* Score cells - make the values bold and prominent */
+.data-table td.col-score {
+    font-weight: 700;
+    font-size: 0.875rem;
 }
 
 /* Zebra striping for readability */
@@ -1623,7 +2658,18 @@ tr[data-contract] {
 .col-money { text-align: right !important; min-width: 70px; font-family: 'SF Mono', Monaco, monospace; }
 .col-pct { text-align: right !important; min-width: 60px; }
 .col-delta { text-align: center !important; min-width: 60px; }
-.col-score { text-align: center !important; min-width: 70px; }
+.col-score {
+    text-align: center !important;
+    min-width: 70px;
+    font-weight: 700;
+    color: #1e40af;
+}
+
+/* AI Score header - make it stand out */
+th.col-score {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    color: #1e40af !important;
+}
 
 /* LEAPS Ranker specific column classes - matching header and body */
 .col-contract { text-align: left !important; min-width: 140px; }
@@ -1703,6 +2749,98 @@ tr[data-contract] {
     font-size: 0.75rem;
     border-top: 1px solid var(--border-color);
     margin-top: 1rem;
+}
+
+/* Embed Mode - Hide header and footer when embedded in iframe */
+.embed-mode .header,
+.embed-mode .footer {
+    display: none !important;
+}
+
+/* Embed mode: Remove max-width constraint and centering so content fills iframe */
+.embed-mode .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0.5rem 0.75rem !important;
+}
+
+/* Embed mode: Force body and html to fill iframe completely */
+.embed-mode,
+.embed-mode body {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+}
+
+/* Embed mode: Tables and cards should fill available width */
+.embed-mode .page-layout,
+.embed-mode .iron-condor-layout {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+}
+
+.embed-mode .results-table-container {
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Embed mode: Make table fill full width */
+.embed-mode .data-table {
+    width: 100% !important;
+    table-layout: auto !important;
+}
+
+.embed-mode .results-section {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.embed-mode .table-scroll-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Embed mode: Controls card should also fill width */
+.embed-mode .controls-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Embed mode: Force ALL elements to use full width - eliminates centering gaps */
+.embed-mode * {
+    max-width: 100% !important;
+}
+
+/* Embed mode: Remove any margin:auto centering from all sections */
+.embed-mode section,
+.embed-mode main,
+.embed-mode article,
+.embed-mode div.results-section,
+.embed-mode div.filters-section {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Embed mode: Ensure the main content area fills width */
+.embed-mode .main-content,
+.embed-mode .content-wrapper,
+.embed-mode .page-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
 }
 
 /* ============================================
@@ -3016,6 +4154,708 @@ tr.selected-for-sim::after {
 
     .iron-condor-layout .pl-chart-bars {
         height: 140px;
+    }
+}
+
+/* ============================================
+   IRON CONDOR UX IMPROVEMENTS
+   Fixes for: color coding, alignment, contrast,
+   sticky headers, tooltips, row highlighting,
+   responsive design, button styles
+   ============================================ */
+
+/* Issue #1: Color Coding for Data Columns - Uses unified CSS variables */
+.iron-condor-layout .data-table .col-money .positive,
+.iron-condor-layout .data-table td .positive {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.iron-condor-layout .data-table .col-money .negative,
+.iron-condor-layout .data-table td .negative {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* Issue #2 & #3: Column Alignment & Text Contrast - Uses unified CSS variables */
+.iron-condor-layout .data-table th {
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    background: var(--bg-color);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.iron-condor-layout .data-table td {
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+/* Numeric columns - right aligned with monospace */
+.iron-condor-layout .data-table .col-strike,
+.iron-condor-layout .data-table .col-money,
+.iron-condor-layout .data-table .col-pct {
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+/* Issue #4: Prominent AI Button - Fixed floating action button */
+.iron-condor-ai-fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4),
+                0 2px 6px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s ease;
+}
+
+.iron-condor-ai-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5),
+                0 3px 10px rgba(37, 99, 235, 0.3);
+}
+
+.iron-condor-ai-fab .fab-icon {
+    font-size: 1.125rem;
+}
+
+.iron-condor-ai-fab .fab-pulse {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    opacity: 0;
+    animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.4;
+    }
+    100% {
+        transform: scale(1.15);
+        opacity: 0;
+    }
+}
+
+/* Issue #5: Increased Row Spacing */
+.iron-condor-layout .data-table td {
+    padding: 0.875rem 0.75rem;
+    line-height: 1.6;
+}
+
+.iron-condor-layout .data-table th {
+    padding: 0.75rem 0.75rem;
+}
+
+/* Zebra striping with better contrast - Uses unified CSS variables */
+.iron-condor-layout .data-table tbody tr:nth-child(odd) {
+    background: var(--card-bg);
+}
+
+.iron-condor-layout .data-table tbody tr:nth-child(even) {
+    background: var(--bg-color);
+}
+
+/* Issue #6: Number Formatting - handled in JS, CSS for visual alignment */
+.iron-condor-layout .data-table .col-strike {
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Issue #7: Sticky Table Headers */
+.iron-condor-layout .table-scroll-container {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+.iron-condor-layout .data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.iron-condor-layout .data-table thead th {
+    background: var(--bg-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Issue #8: Improved Tooltips */
+.iron-condor-layout .data-table th[title] {
+    cursor: help;
+    position: relative;
+}
+
+.iron-condor-layout .data-table th[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem 0.75rem;
+    background: #1e293b;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: nowrap;
+    border-radius: 6px;
+    z-index: 100;
+    margin-bottom: 0.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.iron-condor-layout .data-table th[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1e293b;
+    margin-bottom: -6px;
+    z-index: 100;
+}
+
+/* Issue #9: AI Insights Row Highlighting - Uses unified CSS variables */
+.iron-condor-layout .data-table tbody tr.selected-for-sim {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.1) 100%) !important;
+    border-left: 3px solid var(--primary-color);
+}
+
+.iron-condor-layout .data-table tbody tr.selected-for-sim td {
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.iron-condor-layout .data-table tbody tr.selected-for-sim td:first-child {
+    padding-left: calc(0.75rem - 3px);
+}
+
+/* Clickable row indicator */
+.iron-condor-layout .data-table tbody tr.clickable-row {
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.iron-condor-layout .data-table tbody tr.clickable-row:hover {
+    background: #f0f9ff !important;
+}
+
+.iron-condor-layout .data-table tbody tr.clickable-row:active {
+    transform: scale(0.995);
+}
+
+/* Issue #10: AI Section Visual Clarity */
+.iron-condor-layout .ai-badge {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+/* Score badge improvements */
+.iron-condor-layout .score-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    border-radius: 6px;
+}
+
+.iron-condor-layout .score-badge.score-high {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
+.iron-condor-layout .score-badge.score-medium {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
+}
+
+.iron-condor-layout .score-badge.score-low {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    box-shadow: 0 1px 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Issue #11: Responsive Design Improvements */
+@media (max-width: 768px) {
+    .iron-condor-layout .data-table th,
+    .iron-condor-layout .data-table td {
+        padding: 0.625rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .iron-condor-layout .results-table-header-flex {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .iron-condor-layout .results-table-header-right {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .iron-condor-layout .info-pill {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .iron-condor-layout .info-pill-label {
+        font-size: 0.5625rem;
+    }
+
+    .iron-condor-layout .info-pill-value {
+        font-size: 0.75rem;
+    }
+
+    .iron-condor-ai-fab {
+        bottom: 1rem;
+        right: 1rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .iron-condor-layout .controls-inline-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .iron-condor-layout .control-divider {
+        display: none;
+    }
+
+    .iron-condor-layout .control-group {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .iron-condor-layout .control-group label {
+        min-width: 70px;
+    }
+
+    .iron-condor-layout .select-compact {
+        flex: 1;
+        min-width: auto;
+    }
+
+    .iron-condor-layout .btn-compact {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Issue #12: Button Text Style Consistency */
+.iron-condor-layout .btn-primary {
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.iron-condor-layout .btn-primary .btn-icon {
+    font-size: 0.75rem;
+}
+
+/* Simulator hint banner - more visible */
+.iron-condor-layout .simulator-hint-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.iron-condor-layout .simulator-hint-icon {
+    font-size: 0.875rem;
+}
+
+/* Legend section improvements */
+.iron-condor-layout .legend-card {
+    margin-top: 1.5rem;
+}
+
+.iron-condor-layout .legend-term {
+    font-weight: 700;
+    color: #2563eb;
+    min-width: 60px;
+}
+
+.iron-condor-layout .legend-def {
+    color: #475569;
+    font-size: 0.8125rem;
+}
+
+/* ============================================
+   IRON CONDOR UX IMPROVEMENTS - ROUND 2
+   Fixes for: info pills alignment, button visibility,
+   spacing, icon clarity, label placement, aesthetics
+   ============================================ */
+
+/* Issue #1: Info Pills Alignment and Spacing */
+.iron-condor-layout .results-table-header-flex {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.iron-condor-layout .results-table-header-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.iron-condor-layout .info-pill {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    min-width: 60px;
+}
+
+.iron-condor-layout .info-pill-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.125rem;
+}
+
+.iron-condor-layout .info-pill-value {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #1e293b;
+    font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.iron-condor-layout .info-pill-highlight {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #93c5fd;
+}
+
+.iron-condor-layout .info-pill-highlight .info-pill-value {
+    color: #1d4ed8;
+}
+
+/* Issue #2: Button Visibility - Make "Select a row" more prominent */
+.iron-condor-layout .simulator-hint-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.iron-condor-layout .simulator-hint-banner:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    transform: translateY(-1px);
+}
+
+.iron-condor-layout .simulator-hint-icon {
+    font-size: 1rem;
+}
+
+.iron-condor-layout .simulator-hint-text {
+    font-weight: 600;
+}
+
+/* Issue #3: Spacing Consistency */
+.iron-condor-layout .results-table-header {
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 12px 12px 0 0;
+}
+
+.iron-condor-layout .results-table-header-left {
+    flex: 1;
+    min-width: 200px;
+}
+
+.iron-condor-layout .results-table-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.iron-condor-layout .results-table-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Issue #4: Icon Clarity for AI Section */
+.iron-condor-layout .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+}
+
+.iron-condor-layout .ai-badge::before {
+    content: '✨';
+    font-size: 0.75rem;
+}
+
+/* Issue #5: Neutral Label Placement */
+.iron-condor-layout .spread-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.iron-condor-layout .spread-badge-neutral {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    color: #7c3aed;
+    border: 1px solid #c4b5fd;
+}
+
+/* Issue #6: Aesthetic Consistency - Unified backgrounds */
+.iron-condor-layout .results-table-container {
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Issue #7: Font Size Consistency */
+.iron-condor-layout .page-header-compact {
+    margin-bottom: 1rem;
+}
+
+.iron-condor-layout .page-title-compact {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.iron-condor-layout .page-subtitle-compact {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+/* Issue #8: Interactive Effects - Buttons and Actionable Elements */
+.iron-condor-layout .btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.iron-condor-layout .btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transform: translateY(-1px);
+}
+
+.iron-condor-layout .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+}
+
+.iron-condor-layout .btn-primary .btn-icon {
+    font-size: 0.75rem;
+}
+
+/* Controls card styling */
+.iron-condor-layout .controls-card-inline {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.iron-condor-layout .controls-inline-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.iron-condor-layout .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.iron-condor-layout .control-group label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.iron-condor-layout .select-compact {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #374151;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    min-width: 80px;
+}
+
+.iron-condor-layout .select-compact:hover {
+    border-color: #3b82f6;
+}
+
+.iron-condor-layout .select-compact:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.iron-condor-layout .control-divider {
+    color: #d1d5db;
+    font-weight: 300;
+}
+
+/* Issue #9: Mobile Optimization */
+@media (max-width: 768px) {
+    .iron-condor-layout .results-table-header-flex {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .iron-condor-layout .results-table-header-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .iron-condor-layout .info-pill {
+        flex: 1;
+        min-width: 70px;
+    }
+
+    .iron-condor-layout .simulator-hint-banner {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .iron-condor-layout .controls-inline-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .iron-condor-layout .control-group {
+        width: 100%;
+    }
+
+    .iron-condor-layout .select-compact {
+        width: 100%;
+    }
+
+    .iron-condor-layout .control-divider {
+        display: none;
+    }
+
+    .iron-condor-layout .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .iron-condor-layout .results-table-title {
+        font-size: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .iron-condor-layout .info-pill {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .iron-condor-layout .info-pill-value {
+        font-size: 0.8125rem;
+    }
+
+    .iron-condor-layout .page-title-compact {
+        font-size: 1.25rem;
     }
 }
 
@@ -4598,5 +6438,63 @@ tr.selected-for-sim::after {
 
     .ai-mechanic-label {
         min-width: 100px;
+    }
+}
+
+/* ============================================ */
+/* AI Tooltip Styles                            */
+/* ============================================ */
+
+/* Elements with AI tooltips enabled */
+[data-ai-metric] {
+    cursor: help;
+    position: relative;
+    border-bottom: 1px dashed var(--primary-light);
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+[data-ai-metric]:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+/* Visual hint for AI-enabled elements */
+.ai-tooltip-enabled::after {
+    content: '✨';
+    font-size: 0.625rem;
+    margin-left: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.ai-tooltip-enabled:hover::after {
+    opacity: 1;
+}
+
+/* Loading state for tooltips */
+.ai-tooltip-loading {
+    position: relative;
+}
+
+.ai-tooltip-loading::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid transparent;
+    border-top-color: var(--primary-color);
+    border-radius: 4px;
+    animation: ai-tooltip-spin 0.8s linear infinite;
+}
+
+@keyframes ai-tooltip-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile touch hint */
+@media (max-width: 640px) {
+    .ai-tooltip-enabled::after {
+        content: '👆';
+        opacity: 0.5;
     }
 }

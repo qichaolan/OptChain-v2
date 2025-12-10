@@ -133,20 +133,131 @@ export const MetadataSchema = z.union([
 ]);
 
 // ============================================================================
+// Micro Action Schema
+// ============================================================================
+
+export const MicroActionTypeSchema = z.enum([
+  // LEAPS
+  'leaps.explain_breakeven',
+  'leaps.explain_leverage',
+  'leaps.highlight_risks',
+  'leaps.compare_contracts',
+  // Credit Spreads
+  'credit_spread.analyze_probability_of_touch',
+  'credit_spread.analyze_roi_risk_tradeoff',
+  'credit_spread.explain_delta',
+  'credit_spread.explain_theta',
+  // Iron Condor
+  'iron_condor.explain_regions',
+  'iron_condor.explain_profit_zone',
+  'iron_condor.analyze_skew',
+  'iron_condor.analyze_wing_balance',
+  // Metrics
+  'metric.explain_iv',
+  'metric.explain_score',
+  'metric.explain_dte',
+  // Scenario simulations
+  'scenario.what_if_price_change',
+  'scenario.what_if_iv_change',
+  'scenario.what_if_time_passes',
+  // Generic contextual help
+  'generic.summarize_selection',
+  'generic.explain_section',
+]);
+
+export const MicroActionSchema = z.object({
+  type: MicroActionTypeSchema,
+  prompt: z.string().max(500),
+});
+
+export type MicroAction = z.infer<typeof MicroActionSchema>;
+
+// ============================================================================
+// Tooltip Metric Schema
+// ============================================================================
+
+export const MetricTypeSchema = z.enum([
+  'iv',
+  'ivp',
+  'delta',
+  'score',
+  'dte',
+  'roc',
+  'pop',
+  'breakeven',
+  'strike',
+  'premium',
+  'width',
+  'credit',
+  'max_gain',
+  'max_loss',
+]);
+
+export const TooltipRequestSchema = z.object({
+  metricType: MetricTypeSchema,
+  metricValue: z.union([z.string(), z.number()]),
+  metricLabel: z.string().max(100).optional(),
+});
+
+export type TooltipRequest = z.infer<typeof TooltipRequestSchema>;
+
+// ============================================================================
 // API Request Schema
 // ============================================================================
 
-export const ExplainRequestSchema = z.object({
+// For micro actions and tooltips, we allow more flexible metadata
+const FlexibleMetadataSchema = z.record(z.unknown());
+
+// Full analysis requests - use flexible metadata to accept any structure
+const FullAnalysisRequestSchema = z.object({
   pageId: PageIdSchema,
   contextType: ContextTypeSchema,
-  metadata: MetadataSchema,
+  metadata: FlexibleMetadataSchema,
   timestamp: z.string().datetime().optional(),
   settings: z.object({
     theme: z.enum(['light', 'dark']).optional(),
     device: z.enum(['mobile', 'desktop']).optional(),
     locale: z.string().max(10).optional(),
   }).optional(),
+  microAction: z.undefined().optional(),
+  tooltipRequest: z.undefined().optional(),
 });
+
+// Micro action requests have flexible metadata
+const MicroActionRequestSchema = z.object({
+  pageId: PageIdSchema.optional(),
+  contextType: ContextTypeSchema.optional(),
+  metadata: FlexibleMetadataSchema,
+  timestamp: z.string().datetime().optional(),
+  settings: z.object({
+    theme: z.enum(['light', 'dark']).optional(),
+    device: z.enum(['mobile', 'desktop']).optional(),
+    locale: z.string().max(10).optional(),
+  }).optional(),
+  microAction: MicroActionSchema,
+  tooltipRequest: z.undefined().optional(),
+});
+
+// Tooltip requests have flexible metadata
+const TooltipExplainRequestSchema = z.object({
+  pageId: PageIdSchema.optional(),
+  contextType: ContextTypeSchema.optional(),
+  metadata: FlexibleMetadataSchema,
+  timestamp: z.string().datetime().optional(),
+  settings: z.object({
+    theme: z.enum(['light', 'dark']).optional(),
+    device: z.enum(['mobile', 'desktop']).optional(),
+    locale: z.string().max(10).optional(),
+  }).optional(),
+  microAction: z.undefined().optional(),
+  tooltipRequest: TooltipRequestSchema,
+});
+
+export const ExplainRequestSchema = z.union([
+  MicroActionRequestSchema,
+  TooltipExplainRequestSchema,
+  FullAnalysisRequestSchema,
+]);
 
 export type ExplainRequest = z.infer<typeof ExplainRequestSchema>;
 

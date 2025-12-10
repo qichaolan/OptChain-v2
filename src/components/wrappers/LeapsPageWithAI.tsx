@@ -1,16 +1,21 @@
 'use client';
 
 /**
- * LEAPS Page Wrapper with AI Integration
+ * LEAPS Page Wrapper with AI Integration - Chatless Generative UI
  *
  * Wraps the existing LEAPS Ranker page and provides CopilotKit integration.
- * This component adds the AI Insights button and panel without modifying
- * the original page code.
+ * Uses chatless generative UI - AI insights appear as native UI elements,
+ * not as a chat conversation.
+ *
+ * Key traits:
+ * - No chat surface
+ * - App decides when and where generative UI appears
+ * - Feels like a built-in product feature
  */
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useOptionChain } from '@/contexts';
-import { AiInsightsButton, AiInsightsPanel } from '@/components/ai';
+import { InlineAiInsights } from '@/components/ai';
 import { LeapsMetadata, createLeapsContext } from '@/types';
 
 // ============================================================================
@@ -55,7 +60,8 @@ export function LeapsPageWithAI({
 }: LeapsPageWithAIProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeError, setIframeError] = useState(false);
-  const { setCurrentContext, clearContext } = useOptionChain();
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const { setCurrentContext, clearContext, currentMetadata } = useOptionChain();
 
   // Handle messages from the embedded page
   const handleMessage = useCallback(
@@ -123,39 +129,99 @@ export function LeapsPageWithAI({
     };
   }, []);
 
-  return (
-    <div className={`relative w-full h-screen ${className}`}>
-      {/* Embedded LEAPS Page */}
-      {iframeError ? (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-50">
-          <span className="text-4xl mb-4">⚠️</span>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            Failed to load page
-          </h2>
-          <p className="text-gray-600 mb-4">
-            The embedded page could not be loaded.
-          </p>
-          <button
-            onClick={() => setIframeError(false)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : (
-        <iframe
-          ref={iframeRef}
-          src={pageUrl}
-          className="w-full h-full border-0"
-          title="LEAPS Ranker"
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          onError={() => setIframeError(true)}
-        />
-      )}
+  // Auto-show AI panel when simulation data arrives
+  useEffect(() => {
+    if (currentMetadata) {
+      setShowAiPanel(true);
+    }
+  }, [currentMetadata]);
 
-      {/* AI Components Overlay */}
-      <AiInsightsButton position="bottom-right" />
-      <AiInsightsPanel />
+  return (
+    <div className={`relative w-full h-full ${className}`}>
+      {/* Main content area with iframe and AI panel side by side */}
+      <div className="flex h-full">
+        {/* Embedded LEAPS Page - uses flex-1 to fill remaining space */}
+        <div className={`h-full transition-all duration-300 ease-out min-w-0 ${showAiPanel && currentMetadata ? 'flex-1' : 'w-full'}`}>
+          {iframeError ? (
+            <div className="flex flex-col items-center justify-center h-full bg-gray-50">
+              <span className="text-4xl mb-4">⚠️</span>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                Failed to load page
+              </h2>
+              <p className="text-gray-600 mb-4">
+                The embedded page could not be loaded.
+              </p>
+              <button
+                onClick={() => setIframeError(false)}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <iframe
+              ref={iframeRef}
+              src={pageUrl}
+              className="w-full h-full border-0"
+              title="LEAPS Ranker"
+              sandbox="allow-scripts allow-same-origin allow-forms"
+              onError={() => setIframeError(true)}
+            />
+          )}
+        </div>
+
+        {/* Chatless AI Insights Panel - reduced width for better balance */}
+        {currentMetadata && showAiPanel && (
+          <div
+            className={`
+              hidden md:flex h-full w-[380px] flex-shrink-0
+              bg-white border-l border-gray-200 shadow-xl
+              flex-col overflow-hidden
+            `}
+          >
+            {/* Header - High contrast for visibility */}
+            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-blue-200 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-lg">
+                  <span className="text-xl">🤖</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-base">AI Insights</h4>
+                  <p className="text-blue-100 text-xs">OptChain Insight Engine</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAiPanel(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+                aria-label="Close panel"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Inline AI Insights - Chatless Generative UI */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <InlineAiInsights
+                size="detailed"
+                autoAnalyze={true}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Toggle button when panel is hidden */}
+        {currentMetadata && !showAiPanel && (
+          <button
+            onClick={() => setShowAiPanel(true)}
+            className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-full shadow-lg transition-all hover:shadow-xl hover:scale-105"
+          >
+            <span className="text-xl">🤖</span>
+            <span className="hidden sm:inline">AI Insights</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
