@@ -1,91 +1,101 @@
-# OptChain v2 - CopilotKit Integration
-This is an experimental CopilotKit-enabled version of the OptionChain web application (https://optchain.app/). It is an AI-powered stock options analysis tool built with CopilotKit and Google Gemini. For questions or feedback, please contact: info@optchain.app
+# OptChain - AI-Powered Options Analysis
+
+<img src="public/opt.png" alt="OptChain Logo" width="80" />
+
+OptChain is an AI-powered stock options analysis tool built with Next.js, CopilotKit, and Google Gemini. It provides real-time options chain analysis with intelligent AI insights for various trading strategies.
+
+**Live Demo**: [optchain.app](https://optchain.app/)
+**Contact**: info@optchain.app
+
+## Features
+
+### Options Screeners
+- **Chain Analysis** - Full options chain viewer with calls/puts, open interest visualization, and AI analysis
+- **LEAPS Screener** - Long-term equity anticipation securities finder with ROI projections
+- **Credit Spreads** - Bull put and bear call spread screener with ROC calculations
+- **Iron Condors** - Iron condor strategy screener with probability of profit analysis
+
+### AI Capabilities
+- **AI Insights Panel** - Contextual AI analysis for any selected option or spread
+- **Battle Mode** - Side-by-side AI comparison of two options contracts
+- **Hover AI Tooltips** - Instant AI explanations when hovering over metrics (IV, Delta, etc.)
+- **Micro Actions** - Quick AI actions like "Explain", "Summarize", "Compare"
 
 ## Architecture
 
 ```
-OptChain-v2/  (this repo - standalone)
+OptChain/
 ├── src/
-│   ├── app/                    # Next.js App Router pages
-│   │   ├── api/
-│   │   │   └── copilotkit/     # CopilotKit runtime endpoints
-│   │   │       ├── route.ts    # Main CopilotKit handler
-│   │   │       └── explain/    # AI explainer endpoint
-│   │   ├── leaps/              # LEAPS page with AI
-│   │   ├── credit-spreads/     # Credit Spreads page with AI
-│   │   ├── iron-condors/       # Iron Condors page with AI
-│   │   ├── layout.tsx          # Root layout with providers
-│   │   └── page.tsx            # Home page
+│   ├── app/                      # Next.js App Router pages
+│   │   ├── api/copilotkit/       # CopilotKit API endpoints
+│   │   │   ├── route.ts          # Main CopilotKit handler
+│   │   │   └── explain/          # AI explainer endpoint
+│   │   ├── chain-analysis/       # Options chain analysis (home)
+│   │   ├── leaps/                # LEAPS screener
+│   │   ├── credit-spreads/       # Credit spreads screener
+│   │   ├── iron-condors/         # Iron condors screener
+│   │   └── layout.tsx            # Root layout with providers
 │   │
 │   ├── components/
-│   │   ├── ai/                 # AI UI components
+│   │   ├── ai/                   # AI UI components
 │   │   │   ├── AiInsightsButton.tsx
-│   │   │   └── AiInsightsPanel.tsx
-│   │   └── wrappers/           # Page wrappers with AI integration
-│   │       ├── LeapsPageWithAI.tsx
-│   │       ├── CreditSpreadsPageWithAI.tsx
-│   │       └── IronCondorPageWithAI.tsx
+│   │   │   ├── AiInsightsPanel.tsx
+│   │   │   ├── InlineAiInsights.tsx
+│   │   │   ├── BattleModeComparison.tsx
+│   │   │   ├── ChainBattleModeComparison.tsx
+│   │   │   ├── HoverAI.tsx
+│   │   │   ├── AiTooltip.tsx
+│   │   │   └── MicroAiAction.tsx
+│   │   ├── charts/               # Visualization components
+│   │   │   └── OIMirrorBarChart.tsx
+│   │   ├── wrappers/             # Page wrappers with AI
+│   │   └── Navigation.tsx        # Shared navigation
 │   │
-│   ├── contexts/               # React contexts
+│   ├── contexts/                 # React contexts
 │   │   ├── CopilotProvider.tsx
 │   │   └── OptionChainContext.tsx
 │   │
-│   ├── hooks/                  # Custom hooks
-│   │   └── useAiExplainer.ts
+│   ├── hooks/                    # Custom hooks
+│   │   ├── useAiExplainer.ts
+│   │   └── usePopoverPosition.ts
 │   │
-│   ├── actions/                # CopilotKit actions
-│   │   └── aiExplainerAction.ts
+│   ├── lib/                      # Utilities
+│   │   ├── gemini.ts             # Gemini AI client
+│   │   ├── prompts.ts            # AI prompt templates
+│   │   ├── validation.ts         # Zod schemas
+│   │   └── options-utils.ts      # Options calculations
 │   │
-│   ├── types/                  # TypeScript definitions
-│   │   ├── context.ts          # Context envelope types
-│   │   └── ai-response.ts      # AI response types
-│   │
-│   └── utils/                  # Utility functions
+│   └── types/                    # TypeScript definitions
+│       ├── context.ts            # Context envelope types
+│       └── ai-response.ts        # AI response types
 │
-├── prompts/                    # AI prompt templates
+├── prompts/                      # AI prompt templates
 │   ├── leaps/
-│   │   └── explainer.txt
 │   ├── spreads/
-│   │   └── explainer.txt
-│   └── iron-condor/
-│       └── explainer.txt
+│   ├── iron-condor/
+│   └── micro-actions/
 │
-├── package.json
-├── tsconfig.json
-├── next.config.js
-└── tailwind.config.js
+├── public/
+│   └── opt.png                   # Logo
+│
+└── backend/                      # Python FastAPI backend
+    └── app/
+        └── main.py
 ```
 
-## Key Features
+## Tech Stack
 
-1. Leaps screener
-2. Credit Spreads Screener
-3. Iron Condor Screener
-
-## Context Envelope Standard
-
-All pages use a standard context envelope format:
-
-```typescript
-interface ContextEnvelope<T> {
-  page: 'leaps_ranker' | 'credit_spread_screener' | 'iron_condor_screener';
-  contextType: 'roi_simulator' | 'spread_simulator';
-  metadata: T;  // Page-specific simulation data
-  settings: {
-    theme: 'light' | 'dark';
-    device: 'mobile' | 'desktop';
-    locale?: string;
-  };
-  timestamp: string;
-}
-```
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **AI Integration**: CopilotKit, Google Gemini 2.0
+- **Backend**: Python FastAPI (options data API)
+- **Visualization**: Recharts
 
 ## Setup
 
 ### Prerequisites
 
 - Node.js 18+
-- Running FastAPI backend (port 8080)
+- Python 3.9+ (for backend)
 - Google Gemini API key
 
 ### Environment Variables
@@ -95,9 +105,6 @@ Create a `.env.local` file:
 ```env
 # Required: Gemini API Key
 GOOGLE_API_KEY=your-gemini-api-key
-
-# Optional: CopilotKit Cloud API Key
-NEXT_PUBLIC_COPILOTKIT_API_KEY=your-copilotkit-key
 
 # Optional: Backend URL (defaults to localhost:8080)
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
@@ -109,163 +116,119 @@ GEMINI_MODEL=gemini-2.0-flash-exp
 ### Installation
 
 ```bash
-cd OptChain-v2
+# Install frontend dependencies
 npm install
+
+# Install backend dependencies
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Development
 
 ```bash
-# Start the existing FastAPI backend first (from the sibling 'option' repo)
-cd ../option/web
+# Terminal 1: Start the backend
+cd backend
+source .venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 
-# In another terminal, start OptChain-v2
-cd ../OptChain-v2
+# Terminal 2: Start the frontend
 npm run dev
 ```
 
-The CopilotKit-enabled version will be available at `http://localhost:3001`.
+The application will be available at `http://localhost:3001`.
 
 ## Usage
 
-### Switching Between Versions
+### Navigation
 
-| Version | URL | Description |
-|---------|-----|-------------|
-| Original | `http://localhost:8080` | FastAPI + Jinja2 templates |
-| OptChain-v2 | `http://localhost:3001` | React + CopilotKit |
+| Page | URL | Description |
+|------|-----|-------------|
+| Chain Analysis | `/chain-analysis` | Full options chain with AI analysis |
+| LEAPS | `/leaps` | Long-term options screener |
+| Credit Spreads | `/credit-spreads` | Credit spread finder |
+| Iron Condors | `/iron-condors` | Iron condor screener |
 
-### Using AI Insights
+### AI Features
 
-1. Navigate to any strategy page (LEAPS, Credit Spreads, Iron Condors)
-2. Run a simulation using the existing UI
-3. Click the "AI Insights" button (bottom-right)
-4. View structured analysis in the slide-out panel
+1. **AI Insights Panel**: Click the "AI Insights" button on any page to get contextual analysis
+2. **Battle Mode**: Compare two options side-by-side with AI analysis (available on LEAPS and Chain Analysis)
+3. **Hover Tooltips**: Hover over metrics like IV, Delta, OI to get instant AI explanations
+4. **Select & Analyze**: Click on any option row to load it into the AI context
 
-### Communication Between iframe and Wrapper
+## Deployment
 
-The existing pages can communicate with the wrapper using `postMessage`:
-
-```javascript
-// In existing page (e.g., credit_spreads.js)
-window.parent.postMessage({
-  type: 'CREDIT_SPREAD_SIMULATION_UPDATE',
-  payload: {
-    symbol: 'SPY',
-    spreadType: 'PCS',
-    shortStrike: 580,
-    longStrike: 575,
-    netCredit: 1.25,
-    // ... other metadata
-  }
-}, '*');
-```
-
-## Deployment to GCP Cloud Run
-
-### Build and Deploy
+### Docker
 
 ```bash
-# Build the Docker image
-docker build -t gcr.io/YOUR_PROJECT/optchain-v2 .
+# Build the image
+docker build -t optchain .
 
-# Push to Container Registry
-docker push gcr.io/YOUR_PROJECT/optchain-v2
+# Run the container
+docker run -p 3001:3001 \
+  -e GOOGLE_API_KEY=your-key \
+  -e NEXT_PUBLIC_BACKEND_URL=https://your-backend.run.app \
+  optchain
+```
 
-# Deploy to Cloud Run
-gcloud run deploy optchain-v2 \
-  --image gcr.io/YOUR_PROJECT/optchain-v2 \
+### GCP Cloud Run
+
+```bash
+# Build and push
+docker build -t gcr.io/YOUR_PROJECT/optchain .
+docker push gcr.io/YOUR_PROJECT/optchain
+
+# Deploy
+gcloud run deploy optchain \
+  --image gcr.io/YOUR_PROJECT/optchain \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars "GOOGLE_API_KEY=your-key,NEXT_PUBLIC_BACKEND_URL=https://your-backend.run.app"
+  --set-env-vars "GOOGLE_API_KEY=your-key"
 ```
 
-### Dockerfile
+## API Reference
 
-```dockerfile
-FROM node:18-alpine
+### Context Envelope
 
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-RUN npm run build
-
-ENV NODE_ENV=production
-EXPOSE 3001
-
-CMD ["npm", "start"]
-```
-
-## Adding New Pages
-
-1. Create a new page wrapper in `src/components/wrappers/`:
+All pages use a standard context envelope for AI communication:
 
 ```typescript
-'use client';
-
-import { useOptionChain } from '@/contexts';
-import { AiInsightsButton, AiInsightsPanel } from '@/components/ai';
-
-export function NewPageWithAI({ pageUrl }: { pageUrl: string }) {
-  const { setCurrentContext } = useOptionChain();
-
-  // Handle messages from embedded page
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data.type === 'NEW_PAGE_SIMULATION_UPDATE') {
-        setCurrentContext('new_page_id', 'context_type', e.data.payload);
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
-
-  return (
-    <div className="relative w-full h-screen">
-      <iframe src={pageUrl} className="w-full h-full" />
-      <AiInsightsButton />
-      <AiInsightsPanel />
-    </div>
-  );
+interface ContextEnvelope<T> {
+  page: 'chain_analysis' | 'leaps_ranker' | 'credit_spread_screener' | 'iron_condor_screener';
+  contextType: 'roi_simulator' | 'spread_simulator' | 'options_analysis' | 'chain_analysis';
+  metadata: T;
+  settings: {
+    theme: 'light' | 'dark';
+    device: 'mobile' | 'desktop';
+    locale?: string;
+  };
+  timestamp: string;
 }
 ```
 
-2. Add the page route in `src/app/new-page/page.tsx`
-
-3. Create a prompt template in `prompts/new-page/explainer.txt`
-
 ## Troubleshooting
 
-### AI Insights Button Not Showing
-
-- Ensure the embedded page is sending simulation data via `postMessage`
-- Check browser console for errors
-- Verify the context is being set in `OptionChainContext`
-
-### Gemini API Errors
-
+### AI Not Responding
 - Verify `GOOGLE_API_KEY` is set correctly
-- Check rate limits in Gemini console
-- Review API response in Network tab
+- Check Gemini API quotas in Google Cloud Console
+- Review browser console for errors
 
-### iframe Not Loading
-
+### Backend Connection Issues
 - Ensure FastAPI backend is running on port 8080
-- Check CORS settings in `main.py`
-- Verify `X-Frame-Options` header allows embedding
+- Check `NEXT_PUBLIC_BACKEND_URL` environment variable
+- Verify CORS settings in backend
 
-## Future Enhancements
+### Build Errors
+```bash
+# Clear cache and reinstall
+rm -rf node_modules .next
+npm install
+npm run build
+```
 
-- [ ] Replace iframe with native React components
-- [ ] Add real-time streaming for AI responses
-- [ ] Implement conversation history
-- [ ] Integrate with CopilotKit Cloud for analytics
-- [ ] Add more option tools
-- [ ] Add earning analysis
+## License
 
-
+Proprietary - All rights reserved.
