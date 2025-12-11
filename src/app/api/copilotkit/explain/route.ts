@@ -27,7 +27,12 @@ interface AiResponse {
   risks?: Array<{ risk: string; severity: string }>;
   watch_items?: Array<{ item: string; trigger?: string }>;
   disclaimer?: string;
+  // LEAPS-specific new fields
+  verdict?: string;
+  risks_summary?: string[];
+  profit_scenario?: string;
   scenarios?: unknown;
+  // Credit Spread / Iron Condor specific
   strategy_name?: string;
   trade_mechanics?: unknown;
   key_metrics?: unknown;
@@ -350,7 +355,10 @@ export async function POST(req: NextRequest) {
       disclaimer: parsedResponse.disclaimer ||
         'This analysis is for educational purposes only and should not be considered financial advice.',
 
-      // LEAPS-specific (convert snake_case to camelCase)
+      // LEAPS-specific new fields
+      verdict: parsedResponse.verdict,
+      risksSummary: parsedResponse.risks_summary,
+      profitScenario: parsedResponse.profit_scenario,
       scenarios: convertScenarios(parsedResponse.scenarios as Record<string, unknown>),
 
       // Credit Spread / Iron Condor specific

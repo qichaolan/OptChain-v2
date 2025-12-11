@@ -137,6 +137,9 @@ export interface AiExplainerContent {
   disclaimer: string;
 
   // LEAPS-specific
+  verdict?: string;           // Strategic verdict (1-2 sentence high-level assessment)
+  risksSummary?: string[];    // Array of formatted risk strings
+  profitScenario?: string;    // Profit scenario description
   scenarios?: Scenarios;
 
   // Credit Spread / Iron Condor specific

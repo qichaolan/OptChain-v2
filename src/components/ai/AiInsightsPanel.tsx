@@ -127,6 +127,46 @@ function ContentRenderer({ content }: { content: AiExplainerContent }) {
         </div>
       )}
 
+      {/* Verdict (LEAPS) - Strategic summary at top */}
+      {content.verdict && (
+        <div className="bg-gradient-to-r from-primary-50 to-blue-50 p-4 rounded-lg border border-primary-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">⚖️</span>
+            <h5 className="font-semibold text-primary-800">Strategic Verdict</h5>
+          </div>
+          <p className="text-gray-800 font-medium">{content.verdict}</p>
+        </div>
+      )}
+
+      {/* Profit Scenario (LEAPS) */}
+      {content.profitScenario && (
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">📈</span>
+            <h5 className="font-semibold text-green-800">Profit Scenario</h5>
+          </div>
+          <p className="text-gray-700">{content.profitScenario}</p>
+        </div>
+      )}
+
+      {/* Risks Summary (LEAPS) - Quick risk overview */}
+      {content.risksSummary && content.risksSummary.length > 0 && (
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">⚠️</span>
+            <h5 className="font-semibold text-amber-800">Risk Overview</h5>
+          </div>
+          <ul className="space-y-2">
+            {content.risksSummary.map((risk, index) => (
+              <li key={`risk-summary-${index}`} className="flex items-start gap-2 text-sm text-gray-700">
+                <span className="text-amber-600 mt-0.5">•</span>
+                <span>{risk}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <p className="text-gray-700">{content.summary}</p>

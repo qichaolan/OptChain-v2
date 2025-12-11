@@ -158,6 +158,7 @@ COPY backend/backtest ./backend/backtest
 # ============================================================================
 COPY scripts/download-prompts.js /app/scripts/download-prompts.js
 RUN mkdir -p /app/prompts
+COPY prompts ./prompts
 
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
