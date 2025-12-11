@@ -118,6 +118,9 @@ COPY --from=deps /app/node_modules/ms ./node_modules/ms
 COPY --from=deps /app/node_modules/fast-xml-parser ./node_modules/fast-xml-parser
 COPY --from=deps /app/node_modules/strnum ./node_modules/strnum
 
+# Install sharp for Next.js image optimization in standalone mode
+RUN npm install --cpu=x64 --os=linux sharp
+
 # ============================================================================
 # Copy Python backend and dependencies
 # ============================================================================
