@@ -857,7 +857,7 @@ export default function ChainAnalysisPage() {
     clearContext();
 
     try {
-      const response = await fetch(`http://localhost:8080/api/chain/expirations/${ticker}`);
+      const response = await fetch(`/api/chain/expirations/${ticker}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to fetch expirations');
@@ -907,7 +907,7 @@ export default function ChainAnalysisPage() {
     setError(undefined);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/chain/options/${ticker}/${selectedExpiration}?include_greeks=true`);
+      const response = await fetch(`/api/chain/options/${ticker}/${selectedExpiration}?include_greeks=true`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to fetch options chain');

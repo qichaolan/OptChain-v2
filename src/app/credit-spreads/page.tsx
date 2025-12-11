@@ -472,7 +472,7 @@ export default function CreditSpreadsPage() {
     clearContext();
 
     try {
-      const response = await fetch('http://localhost:8080/api/credit-spreads', {
+      const response = await fetch('/api/credit-spreads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

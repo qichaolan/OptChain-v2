@@ -426,7 +426,7 @@ export default function IronCondorsPage() {
         limit: limit.toString(),
       });
 
-      const response = await fetch(`http://localhost:8080/api/iron-condors?${params}`, {
+      const response = await fetch(`/api/iron-condors?${params}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

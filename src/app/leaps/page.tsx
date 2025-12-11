@@ -421,7 +421,7 @@ export default function LeapsPage() {
   useEffect(() => {
     const fetchTickers = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/tickers');
+        const response = await fetch('/api/tickers');
         if (!response.ok) {
           throw new Error('Failed to fetch tickers');
         }
@@ -471,7 +471,7 @@ export default function LeapsPage() {
     clearContext();
 
     try {
-      const response = await fetch('http://localhost:8080/api/leaps', {
+      const response = await fetch('/api/leaps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
