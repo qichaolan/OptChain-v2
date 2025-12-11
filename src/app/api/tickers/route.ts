@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.OPTCHAIN_BACKEND_URL || 'http://localhost:8081';
+function getBackendUrl(): string {
+  return process.env.OPTCHAIN_BACKEND_URL || 'http://127.0.0.1:8081';
+}
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/tickers`);
+    const backendUrl = getBackendUrl();
+    const response = await fetch(`${backendUrl}/api/tickers`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { detail: errorData.detail || 'Failed to fetch tickers' },
+        { error: `Backend error: ${response.status}` },
         { status: response.status }
       );
     }
@@ -17,9 +23,9 @@ export async function GET() {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error proxying to backend:', error);
+    console.error('Error fetching tickers:', error);
     return NextResponse.json(
-      { detail: 'Backend service unavailable' },
+      { error: 'Failed to fetch tickers from backend' },
       { status: 503 }
     );
   }
