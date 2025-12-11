@@ -202,6 +202,8 @@ export interface ChainAnalysisMetadata {
   // Open Interest data for histogram
   callOiData?: StrikeOiData[];
   putOiData?: StrikeOiData[];
+  /** Optional array of available options for Battle Mode comparison */
+  availableOptions?: OptionContract[];
 }
 
 // ============================================================================

@@ -92,6 +92,33 @@ const formatTimestamp = (isoString: string) => {
 // Components
 // =============================================================================
 
+// Tooltip Component
+function Tooltip({ text, position = 'below' }: { text: string; position?: 'above' | 'below' }) {
+  const isBelow = position === 'below';
+  return (
+    <div className="group relative inline-block ml-1">
+      <span className="cursor-help text-gray-400 hover:text-gray-600 text-xs">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-4 h-4 inline"
+        >
+          <path
+            fillRule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </span>
+      <div className={`invisible group-hover:visible absolute z-50 w-64 p-2 text-xs text-white bg-gray-800 rounded-md shadow-lg -left-28 ${isBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
+        {text}
+        <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-transparent ${isBelow ? 'bottom-full border-b-4 border-b-gray-800' : 'top-full border-t-4 border-t-gray-800'}`}></div>
+      </div>
+    </div>
+  );
+}
+
 // Ticker Dropdown Component
 function TickerDropdown({
   value,
@@ -131,6 +158,7 @@ function CompactRangeInput({
   min,
   max,
   step = 1,
+  tooltip,
 }: {
   label: string;
   minValue: number;
@@ -140,10 +168,14 @@ function CompactRangeInput({
   min: number;
   max: number;
   step?: number;
+  tooltip?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600">{label}</label>
+      <div className="flex items-center h-4">
+        <label className="text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
       <div className="flex items-center gap-1">
         <input
           type="number"
@@ -178,6 +210,7 @@ function CompactValueInput({
   max,
   step = 1,
   suffix = '',
+  tooltip,
 }: {
   label: string;
   value: number;
@@ -186,10 +219,14 @@ function CompactValueInput({
   max: number;
   step?: number;
   suffix?: string;
+  tooltip?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600">{label}</label>
+      <div className="flex items-center h-4">
+        <label className="text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
       <div className="flex items-center gap-1">
         <input
           type="number"
@@ -490,6 +527,7 @@ export default function IronCondorsPage() {
                   onMaxChange={setMaxDte}
                   min={1}
                   max={180}
+                  tooltip="Days to Expiration. Shorter DTE means faster time decay (theta) but less time for the trade to work. Longer DTE gives more time but slower decay."
                 />
 
                 {/* Min ROR */}
@@ -500,6 +538,7 @@ export default function IronCondorsPage() {
                   min={0.05}
                   max={1}
                   step={0.01}
+                  tooltip="Minimum Return on Risk (as a decimal). This is the max profit divided by max loss. Higher ROR means better reward relative to risk. E.g., 0.15 = 15% return."
                 />
 
                 {/* Min POP */}
@@ -510,16 +549,18 @@ export default function IronCondorsPage() {
                   min={0.0}
                   max={1}
                   step={0.05}
+                  tooltip="Minimum Probability of Profit (as a decimal). Estimated likelihood the iron condor expires profitable. E.g., 0.50 = 50% chance of profit."
                 />
 
-                {/* Limit */}
+                {/* Top N */}
                 <CompactValueInput
-                  label="Limit"
+                  label="Top N"
                   value={limit}
                   onChange={setLimit}
                   min={1}
                   max={50}
                   step={5}
+                  tooltip="Maximum number of iron condor candidates to display, sorted by combined score."
                 />
 
                 {/* Screen Button */}

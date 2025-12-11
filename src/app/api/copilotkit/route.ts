@@ -14,22 +14,21 @@ import {
 import { MODEL_NAME } from '@/lib/gemini';
 
 // ============================================================================
-// Configuration
-// ============================================================================
-
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-
-// ============================================================================
 // Gemini Adapter Setup
 // ============================================================================
 
+/**
+ * Get Gemini adapter with lazy API key access.
+ * Avoids storing API key in module scope to prevent exposure in stack traces.
+ */
 function getGeminiAdapter() {
-  if (!GEMINI_API_KEY) {
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
   }
 
   return new GoogleGenerativeAIAdapter({
-    apiKey: GEMINI_API_KEY,
+    apiKey,
     model: MODEL_NAME,
   });
 }

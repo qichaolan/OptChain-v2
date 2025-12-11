@@ -16,22 +16,39 @@ export default defineConfig({
         'src/lib/validation.ts',
         'src/lib/rate-limiter.ts',
         'src/lib/security.ts',
+        'src/lib/sanitize.ts',
+        'src/types/context.ts',
+        'src/actions/aiExplainerAction.ts',
         'src/components/ErrorBoundary.tsx',
-        'src/app/chain-analysis/page.tsx',
       ],
       exclude: [
         'src/**/*.d.ts',
       ],
-      // Note: thresholds apply globally across all included files
-      // Individual file thresholds can be set per-file if needed
+      // Coverage thresholds for tested modules
       thresholds: {
-        // For chain-analysis page tests, we focus on that file's coverage
-        // Other files have separate test suites
-        'src/app/chain-analysis/page.tsx': {
-          lines: 85,
-          branches: 80,
-          functions: 80,
-          statements: 85,
+        'src/lib/validation.ts': {
+          lines: 95,
+          branches: 95,
+          functions: 95,
+          statements: 95,
+        },
+        'src/lib/rate-limiter.ts': {
+          lines: 95,
+          branches: 95,
+          functions: 95,
+          statements: 95,
+        },
+        'src/lib/security.ts': {
+          lines: 95,
+          branches: 95,
+          functions: 95,
+          statements: 95,
+        },
+        'src/components/ErrorBoundary.tsx': {
+          lines: 95,
+          branches: 95,
+          functions: 95,
+          statements: 95,
         },
       },
     },

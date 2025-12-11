@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 /**
- * Home Page - OptChain v2
+ * Home Page - OptChain
  *
  * Redirects to Chain Analysis page (the main home page)
  */

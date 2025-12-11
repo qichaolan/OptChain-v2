@@ -17,7 +17,15 @@ import {
   OptionContract,
   createChainAnalysisContext,
 } from '@/types';
-import { findAtmStrike, isAtmStrike } from '@/lib/options-utils';
+import {
+  findAtmStrike,
+  isAtmStrike,
+  transformOiChartData,
+  calculatePremiumSummary,
+  formatCompactCurrency,
+  PremiumOptionContract,
+} from '@/lib/options-utils';
+import { OIMirrorBarChart } from '@/components/charts';
 
 // =============================================================================
 // Types
@@ -60,7 +68,7 @@ interface ApiOptionContract {
   rho?: number;
 }
 
-type FilterType = 'both' | 'call' | 'put';
+type FilterType = 'oi_chart' | 'both' | 'call' | 'put';
 
 // =============================================================================
 // Helper Functions
@@ -279,25 +287,143 @@ function FilterButtons({
   filter: FilterType;
   onFilterChange: (f: FilterType) => void;
 }) {
+  const getButtonStyle = (f: FilterType) => {
+    if (filter !== f) return 'bg-gray-100 text-gray-700 hover:bg-gray-200';
+    switch (f) {
+      case 'oi_chart': return 'bg-purple-600 text-white';
+      case 'call': return 'bg-green-600 text-white';
+      case 'put': return 'bg-red-600 text-white';
+      default: return 'bg-blue-600 text-white';
+    }
+  };
+
+  const getButtonLabel = (f: FilterType) => {
+    switch (f) {
+      case 'oi_chart': return 'OI Bars';
+      case 'both': return 'Both';
+      case 'call': return 'Calls';
+      case 'put': return 'Puts';
+    }
+  };
+
   return (
     <div className="flex gap-2">
-      {(['both', 'call', 'put'] as FilterType[]).map((f) => (
+      {(['oi_chart', 'both', 'call', 'put'] as FilterType[]).map((f) => (
         <button
           key={f}
           onClick={() => onFilterChange(f)}
-          className={`px-4 py-2 rounded-lg font-medium capitalize transition-colors ${
-            filter === f
-              ? f === 'call'
-                ? 'bg-green-600 text-white'
-                : f === 'put'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${getButtonStyle(f)}`}
         >
-          {f === 'both' ? 'Both' : f === 'call' ? 'Calls' : 'Puts'}
+          {getButtonLabel(f)}
         </button>
       ))}
+    </div>
+  );
+}
+
+// Premium Summary Bar Component - Shows total call/put premium above OI chart
+function PremiumSummaryBar({
+  calls,
+  puts,
+  isMobile,
+}: {
+  calls: OptionContract[];
+  puts: OptionContract[];
+  isMobile: boolean;
+}) {
+  const summary = useMemo(() => {
+    // Convert OptionContract to PremiumOptionContract
+    const callContracts: PremiumOptionContract[] = calls.map((c) => ({
+      bid: c.bid,
+      ask: c.ask,
+      lastPrice: c.lastPrice,
+      openInterest: c.openInterest,
+    }));
+    const putContracts: PremiumOptionContract[] = puts.map((p) => ({
+      bid: p.bid,
+      ask: p.ask,
+      lastPrice: p.lastPrice,
+      openInterest: p.openInterest,
+    }));
+    return calculatePremiumSummary(callContracts, putContracts);
+  }, [calls, puts]);
+
+  // Don't render if no valid premium data
+  if (summary.callPremium === null && summary.putPremium === null) {
+    return null;
+  }
+
+  const getHigherLabel = () => {
+    if (summary.higherSide === 'calls') return 'Calls';
+    if (summary.higherSide === 'puts') return 'Puts';
+    if (summary.higherSide === 'equal') return 'Equal';
+    return null;
+  };
+
+  const higherLabel = getHigherLabel();
+
+  // Mobile: two-line stacked layout
+  if (isMobile) {
+    return (
+      <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3 text-sm">
+        <div className="flex justify-between items-center">
+          {summary.callPremium !== null && (
+            <span>
+              <span className="text-gray-500">Call Premium: </span>
+              <span className="font-semibold text-green-600">
+                {formatCompactCurrency(summary.callPremium)}
+              </span>
+            </span>
+          )}
+          {summary.putPremium !== null && (
+            <span>
+              <span className="text-gray-500">Put Premium: </span>
+              <span className="font-semibold text-red-600">
+                {formatCompactCurrency(summary.putPremium)}
+              </span>
+            </span>
+          )}
+        </div>
+        {higherLabel && (
+          <div className="text-center text-gray-500 mt-1">
+            Higher: <span className={`font-semibold ${summary.higherSide === 'calls' ? 'text-green-600' : summary.higherSide === 'puts' ? 'text-red-600' : 'text-gray-600'}`}>{higherLabel}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop: single-line layout
+  return (
+    <div className="bg-gray-50 rounded-lg px-4 py-2 mb-3 flex items-center justify-center gap-6 text-sm">
+      {summary.callPremium !== null && (
+        <span>
+          <span className="text-gray-500">Total Call Premium: </span>
+          <span className="font-semibold text-green-600">
+            {formatCompactCurrency(summary.callPremium)}
+          </span>
+        </span>
+      )}
+      <span className="text-gray-300">|</span>
+      {summary.putPremium !== null && (
+        <span>
+          <span className="text-gray-500">Total Put Premium: </span>
+          <span className="font-semibold text-red-600">
+            {formatCompactCurrency(summary.putPremium)}
+          </span>
+        </span>
+      )}
+      {higherLabel && (
+        <>
+          <span className="text-gray-300">|</span>
+          <span>
+            <span className="text-gray-500">Premium Higher: </span>
+            <span className={`font-semibold ${summary.higherSide === 'calls' ? 'text-green-600' : summary.higherSide === 'puts' ? 'text-red-600' : 'text-gray-600'}`}>
+              {higherLabel}
+            </span>
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -857,6 +983,11 @@ export default function ChainAnalysisPage() {
         .map(p => ({ strike: p.strike, openInterest: p.openInterest || 0 }))
         .sort((a, b) => a.strike - b.strike);
 
+      // Combine calls and puts for Battle Mode (sorted by proximity to ATM)
+      const availableOptions = [...calls, ...puts].sort(
+        (a, b) => Math.abs(a.strike - underlyingPrice) - Math.abs(b.strike - underlyingPrice)
+      );
+
       const metadata: ChainAnalysisMetadata = {
         symbol: ticker,
         underlyingPrice,
@@ -878,6 +1009,7 @@ export default function ChainAnalysisPage() {
         totalPutPremium,
         callOiData,
         putOiData,
+        availableOptions,
       };
 
       const context = createChainAnalysisContext(metadata);
@@ -982,15 +1114,30 @@ export default function ChainAnalysisPage() {
                 <FilterButtons filter={filter} onFilterChange={setFilter} />
               </div>
 
-              <OptionsTable
-                calls={calls}
-                puts={puts}
-                underlyingPrice={underlyingPrice}
-                filter={filter}
-                onSelectOption={setSelectedOption}
-                selectedOption={selectedOption}
-                isMobile={isMobile}
-              />
+              {/* Conditionally render OI Chart or Options Table based on filter */}
+              {filter === 'oi_chart' ? (
+                <div className="p-4">
+                  <PremiumSummaryBar calls={calls} puts={puts} isMobile={isMobile} />
+                  <OIMirrorBarChart
+                    data={transformOiChartData(
+                      calls.map(c => ({ strike: c.strike, openInterest: c.openInterest || 0 })),
+                      puts.map(p => ({ strike: p.strike, openInterest: p.openInterest || 0 }))
+                    )}
+                    underlyingPrice={underlyingPrice}
+                    isMobile={isMobile}
+                  />
+                </div>
+              ) : (
+                <OptionsTable
+                  calls={calls}
+                  puts={puts}
+                  underlyingPrice={underlyingPrice}
+                  filter={filter}
+                  onSelectOption={setSelectedOption}
+                  selectedOption={selectedOption}
+                  isMobile={isMobile}
+                />
+              )}
             </div>
           </div>
         )}

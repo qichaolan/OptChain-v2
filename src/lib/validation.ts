@@ -16,6 +16,7 @@ export const PageIdSchema = z.enum([
   'credit_spread_screener',
   'iron_condor_screener',
   'speculative_screener',
+  'chain_analysis',
 ]);
 
 export type PageId = z.infer<typeof PageIdSchema>;
@@ -30,6 +31,7 @@ export const ContextTypeSchema = z.enum([
   'roi_simulator',
   'spread_simulator',
   'options_analysis',
+  'chain_analysis',
 ]);
 
 export type ContextType = z.infer<typeof ContextTypeSchema>;

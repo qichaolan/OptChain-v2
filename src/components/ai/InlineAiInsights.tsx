@@ -24,6 +24,7 @@ import { MicroActionsGroup } from './MicroAiAction';
 import type { MicroActionType } from './MicroAiAction';
 import { HoverAI } from './HoverAI';
 import { BattleModeComparison } from './BattleModeComparison';
+import { ChainBattleModeComparison } from './ChainBattleModeComparison';
 
 // ============================================================================
 // InfoTooltip Component - Reusable tooltip with (?) icon
@@ -1931,8 +1932,8 @@ export function InlineAiInsights({
   // Sanitize and render result (if available)
   const content = result ? sanitizeAiResponse(result) as AiExplainerContent : null;
 
-  // Check if we're on LEAPS page (battle mode only available for LEAPS)
-  const showBattleMode = currentPage === 'leaps_ranker' || !currentPage;
+  // Check if we're on a page that supports battle mode (LEAPS or Chain Analysis)
+  const showBattleMode = currentPage === 'leaps_ranker' || currentPage === 'chain_analysis' || !currentPage;
 
   // Render AI Insights tab content based on state
   const renderInsightsContent = () => {
@@ -2078,8 +2079,12 @@ export function InlineAiInsights({
           {renderInsightsContent()}
         </div>
       ) : (
-        /* Battle Mode - Contract Comparison */
-        <BattleModeComparison />
+        /* Battle Mode - Contract Comparison (use appropriate component based on page) */
+        currentPage === 'chain_analysis' ? (
+          <ChainBattleModeComparison />
+        ) : (
+          <BattleModeComparison />
+        )
       )}
     </div>
   );

@@ -11,7 +11,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findAtmStrike, isAtmStrike } from '@/lib/options-utils';
+import {
+  findAtmStrike,
+  isAtmStrike,
+  transformOiChartData,
+  getMaxAbsoluteOi,
+  OiMirrorDataPoint,
+  SimpleOptionContract,
+} from '@/lib/options-utils';
 
 // ============================================================================
 // Test findAtmStrike - Exact Match
@@ -362,5 +369,247 @@ describe('isAtmStrike', () => {
   it('should handle decimal strikes correctly', () => {
     expect(isAtmStrike(450.5, 450.5)).toBe(true);
     expect(isAtmStrike(450.5, 450.0)).toBe(false);
+  });
+});
+
+// ============================================================================
+// Test transformOiChartData - OI Mirror Chart Transformation
+// ============================================================================
+
+describe('transformOiChartData - Basic Transformation', () => {
+  it('should transform calls and puts with matching strikes', () => {
+    const calls: SimpleOptionContract[] = [
+      { strike: 450, openInterest: 1000 },
+      { strike: 455, openInterest: 500 },
+    ];
+    const puts: SimpleOptionContract[] = [
+      { strike: 450, openInterest: 800 },
+      { strike: 455, openInterest: 300 },
+    ];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ strike: 450, callOI: -1000, putOI: 800 });
+    expect(result[1]).toEqual({ strike: 455, callOI: -500, putOI: 300 });
+  });
+
+  it('should make call OI negative and keep put OI positive', () => {
+    const calls: SimpleOptionContract[] = [{ strike: 450, openInterest: 5000 }];
+    const puts: SimpleOptionContract[] = [{ strike: 450, openInterest: 3000 }];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result[0].callOI).toBe(-5000);
+    expect(result[0].putOI).toBe(3000);
+  });
+
+  it('should sort results by strike ascending', () => {
+    const calls: SimpleOptionContract[] = [
+      { strike: 460, openInterest: 100 },
+      { strike: 440, openInterest: 200 },
+      { strike: 450, openInterest: 300 },
+    ];
+    const puts: SimpleOptionContract[] = [];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result.map((r) => r.strike)).toEqual([440, 450, 460]);
+  });
+});
+
+describe('transformOiChartData - Non-overlapping Strikes', () => {
+  it('should handle strikes only in calls', () => {
+    const calls: SimpleOptionContract[] = [
+      { strike: 450, openInterest: 1000 },
+      { strike: 455, openInterest: 500 },
+    ];
+    const puts: SimpleOptionContract[] = [{ strike: 445, openInterest: 300 }];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ strike: 445, callOI: 0, putOI: 300 });
+    expect(result[1]).toEqual({ strike: 450, callOI: -1000, putOI: 0 });
+    expect(result[2]).toEqual({ strike: 455, callOI: -500, putOI: 0 });
+  });
+
+  it('should handle strikes only in puts', () => {
+    const calls: SimpleOptionContract[] = [{ strike: 450, openInterest: 1000 }];
+    const puts: SimpleOptionContract[] = [
+      { strike: 445, openInterest: 500 },
+      { strike: 455, openInterest: 300 },
+    ];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result).toHaveLength(3);
+    expect(result.find((r) => r.strike === 445)?.putOI).toBe(500);
+    expect(result.find((r) => r.strike === 450)?.callOI).toBe(-1000);
+    expect(result.find((r) => r.strike === 455)?.putOI).toBe(300);
+  });
+
+  it('should set missing side to 0', () => {
+    const calls: SimpleOptionContract[] = [{ strike: 450, openInterest: 1000 }];
+    const puts: SimpleOptionContract[] = [];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result[0].putOI).toBe(0);
+  });
+});
+
+describe('transformOiChartData - Edge Cases', () => {
+  it('should return empty array for empty inputs', () => {
+    const result = transformOiChartData([], []);
+    expect(result).toEqual([]);
+  });
+
+  it('should return empty array for null-ish inputs', () => {
+    const result = transformOiChartData(
+      null as unknown as SimpleOptionContract[],
+      null as unknown as SimpleOptionContract[]
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('should handle only calls', () => {
+    const calls: SimpleOptionContract[] = [{ strike: 450, openInterest: 1000 }];
+    const result = transformOiChartData(calls, []);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ strike: 450, callOI: -1000, putOI: 0 });
+  });
+
+  it('should handle only puts', () => {
+    const puts: SimpleOptionContract[] = [{ strike: 450, openInterest: 800 }];
+    const result = transformOiChartData([], puts);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ strike: 450, callOI: 0, putOI: 800 });
+  });
+
+  it('should handle zero open interest', () => {
+    const calls: SimpleOptionContract[] = [{ strike: 450, openInterest: 0 }];
+    const puts: SimpleOptionContract[] = [{ strike: 450, openInterest: 0 }];
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result[0].strike).toBe(450);
+    expect(result[0].callOI).toBeLessThanOrEqual(0);
+    expect(result[0].putOI).toBe(0);
+  });
+
+  it('should handle undefined open interest', () => {
+    const calls: SimpleOptionContract[] = [
+      { strike: 450, openInterest: undefined } as unknown as SimpleOptionContract,
+    ];
+    const puts: SimpleOptionContract[] = [{ strike: 450, openInterest: 500 }];
+
+    const result = transformOiChartData(calls, puts);
+
+    // Call OI with undefined becomes -0 (negative zero) due to -(undefined || 0)
+    expect(result[0].callOI).toBeLessThanOrEqual(0);
+    expect(result[0].putOI).toBe(500);
+  });
+
+  it('should handle large datasets', () => {
+    const calls: SimpleOptionContract[] = Array.from({ length: 100 }, (_, i) => ({
+      strike: 400 + i,
+      openInterest: Math.floor(Math.random() * 10000),
+    }));
+    const puts: SimpleOptionContract[] = Array.from({ length: 100 }, (_, i) => ({
+      strike: 400 + i,
+      openInterest: Math.floor(Math.random() * 10000),
+    }));
+
+    const result = transformOiChartData(calls, puts);
+
+    expect(result).toHaveLength(100);
+    // Verify sorting
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i].strike).toBeGreaterThan(result[i - 1].strike);
+    }
+    // Verify call OI is negative
+    result.forEach((point) => {
+      expect(point.callOI).toBeLessThanOrEqual(0);
+      expect(point.putOI).toBeGreaterThanOrEqual(0);
+    });
+  });
+});
+
+// ============================================================================
+// Test getMaxAbsoluteOi - Max OI Calculation for Chart Scaling
+// ============================================================================
+
+describe('getMaxAbsoluteOi - Basic Calculation', () => {
+  it('should return max absolute OI value', () => {
+    const data: OiMirrorDataPoint[] = [
+      { strike: 450, callOI: -1000, putOI: 800 },
+      { strike: 455, callOI: -500, putOI: 1200 },
+    ];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(1200); // Max of |−1000|, 800, |−500|, 1200
+  });
+
+  it('should consider absolute value of negative call OI', () => {
+    const data: OiMirrorDataPoint[] = [
+      { strike: 450, callOI: -5000, putOI: 800 },
+    ];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(5000);
+  });
+
+  it('should return put OI when it is larger', () => {
+    const data: OiMirrorDataPoint[] = [
+      { strike: 450, callOI: -1000, putOI: 8000 },
+    ];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(8000);
+  });
+});
+
+describe('getMaxAbsoluteOi - Edge Cases', () => {
+  it('should return 0 for empty data', () => {
+    const result = getMaxAbsoluteOi([]);
+    expect(result).toBe(0);
+  });
+
+  it('should return 0 for null data', () => {
+    const result = getMaxAbsoluteOi(null as unknown as OiMirrorDataPoint[]);
+    expect(result).toBe(0);
+  });
+
+  it('should handle all zeros', () => {
+    const data: OiMirrorDataPoint[] = [
+      { strike: 450, callOI: 0, putOI: 0 },
+      { strike: 455, callOI: 0, putOI: 0 },
+    ];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(0);
+  });
+
+  it('should handle single data point', () => {
+    const data: OiMirrorDataPoint[] = [{ strike: 450, callOI: -500, putOI: 300 }];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(500);
+  });
+
+  it('should handle large OI values', () => {
+    const data: OiMirrorDataPoint[] = [
+      { strike: 450, callOI: -10000000, putOI: 5000000 },
+    ];
+
+    const result = getMaxAbsoluteOi(data);
+
+    expect(result).toBe(10000000);
   });
 });

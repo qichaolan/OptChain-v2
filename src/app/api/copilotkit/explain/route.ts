@@ -262,10 +262,8 @@ export async function POST(req: NextRequest) {
     // Validate request with Zod
     const validation = safeValidateExplainRequest(body);
     if (!validation.success) {
+      // Log only structured validation errors, not request body details
       console.error('Validation failed:', validation.error);
-      console.error('Request body keys:', Object.keys(body));
-      console.error('Has microAction:', !!body.microAction);
-      console.error('Has tooltipRequest:', !!body.tooltipRequest);
       logRequest(req, requestId, 400, startTime);
       return NextResponse.json(
         { success: false, error: `Validation error: ${validation.error}` },

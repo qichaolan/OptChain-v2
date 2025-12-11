@@ -6,7 +6,7 @@ import { Providers } from '@/components/Providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'OptionChain v2 - AI-Powered Options Analysis',
+  title: 'OptChain - AI-Powered Options Analysis',
   description: 'CopilotKit-enabled options trading analysis tool with LEAPS, Credit Spreads, and Iron Condors',
 };
 

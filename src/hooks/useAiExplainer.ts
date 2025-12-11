@@ -48,7 +48,10 @@ export function useAiExplainer(): UseAiExplainerReturn {
   const [result, setResult] = useState<AiExplainerContent | null>(null);
   const [fromCache, setFromCache] = useState(false);
 
-  // Register the action with CopilotKit
+  // Register the action with CopilotKit.
+  // The 'any' cast is required because CopilotKit's Parameter[] type uses complex
+  // generics that don't align with our simplified action definition format.
+  // Runtime behavior is correct - this only affects compile-time type checking.
   useCopilotAction({
     name: AI_EXPLAINER_ACTION.name,
     description: AI_EXPLAINER_ACTION.description,

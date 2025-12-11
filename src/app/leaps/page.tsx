@@ -14,6 +14,7 @@ import { Navigation } from '@/components';
 import { InlineAiInsights } from '@/components/ai';
 import {
   LeapsMetadata,
+  LeapsContract as LeapsContractType,
   createLeapsContext,
 } from '@/types';
 
@@ -512,6 +513,21 @@ export default function LeapsPage() {
   // Update context when contract is selected
   useEffect(() => {
     if (selectedContract && underlyingPrice) {
+      // Map all contracts to the LeapsContract type for Battle Mode comparison
+      const availableContracts: LeapsContractType[] = contracts.map((c) => ({
+        contractSymbol: c.contract_symbol,
+        expiration: c.expiration,
+        strike: c.strike,
+        premium: c.premium,
+        cost: c.cost,
+        impliedVolatility: c.implied_volatility,
+        openInterest: c.open_interest,
+        delta: c.delta,
+        gamma: c.gamma,
+        theta: c.theta,
+        vega: c.vega,
+      }));
+
       const metadata: LeapsMetadata = {
         symbol: ticker,
         underlyingPrice: underlyingPrice,
@@ -539,13 +555,14 @@ export default function LeapsPage() {
         ],
         breakeven: selectedContract.strike + selectedContract.premium,
         maxLoss: selectedContract.cost,
+        availableContracts: availableContracts,
       };
 
       const context = createLeapsContext(metadata);
       setCurrentContext(context.page, context.contextType, metadata);
       setShowAiPanel(true);
     }
-  }, [selectedContract, underlyingPrice, targetPrice, ticker, targetPct, mode, setCurrentContext]);
+  }, [selectedContract, underlyingPrice, targetPrice, ticker, targetPct, mode, contracts, setCurrentContext]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -579,18 +596,6 @@ export default function LeapsPage() {
                   value={mode}
                   onChange={setMode}
                   tooltip="High Probability: Focuses on options with higher win rates - safer plays with more modest returns. High Convexity: Focuses on options with explosive upside potential - higher risk but bigger rewards if the stock moves significantly."
-                />
-
-                {/* Annual Return Assumption % */}
-                <CompactValueInput
-                  label="Annual Return Assumption %"
-                  value={targetPct}
-                  onChange={setTargetPct}
-                  min={1}
-                  max={200}
-                  step={1}
-                  suffix="%"
-                  tooltip="The annualized growth rate you expect for the underlying stock. For example, 20% means you expect the stock to appreciate 20% each year over the LEAPS duration."
                 />
 
                 {/* Top N */}

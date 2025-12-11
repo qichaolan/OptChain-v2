@@ -31,3 +31,4 @@ export { HoverAI, default as HoverAIDefault } from './HoverAI';
 
 // Battle Mode - Side-by-side contract comparison
 export { BattleModeComparison, default as BattleModeComparisonDefault } from './BattleModeComparison';
+export { ChainBattleModeComparison, default as ChainBattleModeComparisonDefault } from './ChainBattleModeComparison';

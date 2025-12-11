@@ -11,6 +11,7 @@
  */
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 interface NavigationProps {
@@ -18,7 +19,7 @@ interface NavigationProps {
   subtitle?: string;
 }
 
-export function Navigation({ title = 'OptChain v2', subtitle }: NavigationProps) {
+export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -62,15 +63,21 @@ export function Navigation({ title = 'OptChain v2', subtitle }: NavigationProps)
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-4 py-3 shadow-sm"
+      className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-4 py-2 shadow-sm"
       style={{ '--app-header-height': headerHeight } as React.CSSProperties}
     >
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
-              {title}
-            </Link>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2.5 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
+            <Image
+              src="/opt.png"
+              alt="OptChain Logo"
+              width={40}
+              height={40}
+              className="rounded-md"
+            />
+            {title}
+          </Link>
             {subtitle && (
               <span className="text-gray-400 text-sm hidden sm:inline">|</span>
             )}
@@ -88,8 +95,7 @@ export function Navigation({ title = 'OptChain v2', subtitle }: NavigationProps)
                 <span>{item.label}</span>
               </Link>
             ))}
-          </nav>
-        </div>
+        </nav>
       </div>
     </header>
   );
