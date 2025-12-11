@@ -1246,16 +1246,25 @@ function ChainAnalysisSummary({ metadata }: ContractSummaryProps) {
 
       {/* PREMIUM & OPEN INTEREST ANALYSIS - Unified Section */}
       {(() => {
-        const oiData = isCall ? callOiData : putOiData;
-        const maxOi = oiData && oiData.length > 0 ? Math.max(...oiData.map(d => d.openInterest)) : 0;
         const selectedStrike = strike;
-        const barColor = isCall ? '#22c55e' : '#ef4444';
-        const selectedBarColor = isCall ? '#15803d' : '#b91c1c';
-        const histogramHeight = oiData ? Math.min(Math.max(oiData.length * 10, 70), 160) : 0;
+
+        // Combine call and put OI data for mirror chart
+        const allStrikes = new Set<number>();
+        callOiData?.forEach(d => allStrikes.add(d.strike));
+        putOiData?.forEach(d => allStrikes.add(d.strike));
+        const sortedStrikes = Array.from(allStrikes).sort((a, b) => a - b);
+
+        // Calculate max OI across both calls and puts for scaling
+        const maxCallOi = callOiData && callOiData.length > 0 ? Math.max(...callOiData.map(d => d.openInterest)) : 0;
+        const maxPutOi = putOiData && putOiData.length > 0 ? Math.max(...putOiData.map(d => d.openInterest)) : 0;
+        const maxOi = Math.max(maxCallOi, maxPutOi);
+
+        // Calculate histogram height based on number of strikes
+        const histogramHeight = sortedStrikes.length > 0 ? Math.min(Math.max(sortedStrikes.length * 8, 80), 140) : 0;
 
         // Find selected strike's OI for enhanced tooltip
-        const selectedOi = oiData?.find(d => d.strike === selectedStrike)?.openInterest || 0;
-        const selectedOiRank = oiData ? oiData.filter(d => d.openInterest > selectedOi).length + 1 : 0;
+        const selectedCallOi = callOiData?.find(d => d.strike === selectedStrike)?.openInterest || 0;
+        const selectedPutOi = putOiData?.find(d => d.strike === selectedStrike)?.openInterest || 0;
 
         return (
           <div className="bg-gradient-to-b from-slate-50 to-indigo-50/50">
@@ -1301,20 +1310,20 @@ function ChainAnalysisSummary({ metadata }: ContractSummaryProps) {
               )}
             </div>
 
-            {/* OI Histogram */}
-            {oiData && oiData.length > 0 && (
+            {/* OI Mirror Histogram - Shows both calls (left) and puts (right) */}
+            {sortedStrikes.length > 0 && maxOi > 0 && (
               <>
-                {/* Histogram Label with Max OI */}
+                {/* Histogram Label */}
                 <div className="px-2.5 pt-1 flex items-center justify-between">
                   <span className="text-[9px] text-gray-500 uppercase tracking-wide">
-                    {isCall ? 'Call' : 'Put'} OI Distribution
+                    OI Distribution (Calls ← | → Puts)
                   </span>
                   <span className="text-[9px] text-gray-500">
                     Max: <span className="font-semibold text-gray-700">{maxOi.toLocaleString()}</span>
                   </span>
                 </div>
 
-                {/* Histogram */}
+                {/* Mirror Histogram */}
                 <div className="px-2.5 py-1">
                   <div className="relative overflow-x-auto rounded" style={{ height: `${histogramHeight}px` }}>
                     <svg
@@ -1324,103 +1333,127 @@ function ChainAnalysisSummary({ metadata }: ContractSummaryProps) {
                       preserveAspectRatio="none"
                       className="block"
                     >
+                      {/* Center line */}
+                      <line
+                        x1="200"
+                        y1="0"
+                        x2="200"
+                        y2={histogramHeight - 14}
+                        stroke="#9ca3af"
+                        strokeWidth="1"
+                      />
+
                       {/* Background grid lines */}
                       {[0.25, 0.5, 0.75].map(pct => (
-                        <line
-                          key={pct}
-                          x1="0"
-                          y1={histogramHeight - 16 - (histogramHeight - 24) * pct}
-                          x2="400"
-                          y2={histogramHeight - 16 - (histogramHeight - 24) * pct}
-                          stroke="#e5e7eb"
-                          strokeWidth="0.5"
-                          strokeDasharray="2,2"
-                        />
+                        <g key={pct}>
+                          <line
+                            x1={200 - 190 * pct}
+                            y1="0"
+                            x2={200 - 190 * pct}
+                            y2={histogramHeight - 14}
+                            stroke="#e5e7eb"
+                            strokeWidth="0.5"
+                            strokeDasharray="2,2"
+                          />
+                          <line
+                            x1={200 + 190 * pct}
+                            y1="0"
+                            x2={200 + 190 * pct}
+                            y2={histogramHeight - 14}
+                            stroke="#e5e7eb"
+                            strokeWidth="0.5"
+                            strokeDasharray="2,2"
+                          />
+                        </g>
                       ))}
 
-                      {oiData.map((item, index) => {
-                        const barHeight = maxOi > 0 ? (item.openInterest / maxOi) * (histogramHeight - 24) : 0;
-                        const barWidth = Math.max(400 / oiData.length - 1.5, 3);
-                        const x = (index / oiData.length) * 400 + 0.75;
-                        const y = histogramHeight - 16 - barHeight;
-                        const isSelected = selectedStrike === item.strike;
-                        const oiPctOfMax = maxOi > 0 ? ((item.openInterest / maxOi) * 100).toFixed(1) : 0;
+                      {sortedStrikes.map((strikeVal, index) => {
+                        const callOi = callOiData?.find(d => d.strike === strikeVal)?.openInterest || 0;
+                        const putOi = putOiData?.find(d => d.strike === strikeVal)?.openInterest || 0;
+                        const barHeight = Math.max((histogramHeight - 14) / sortedStrikes.length - 1, 3);
+                        const y = (index / sortedStrikes.length) * (histogramHeight - 14) + 0.5;
+                        const isSelected = selectedStrike === strikeVal;
+
+                        // Call bar extends left from center
+                        const callBarWidth = maxOi > 0 ? (callOi / maxOi) * 190 : 0;
+                        // Put bar extends right from center
+                        const putBarWidth = maxOi > 0 ? (putOi / maxOi) * 190 : 0;
 
                         return (
-                          <g key={item.strike}>
+                          <g key={strikeVal}>
                             {/* Selection highlight background */}
                             {isSelected && (
                               <rect
-                                x={x - 1}
-                                y={0}
-                                width={barWidth + 2}
-                                height={histogramHeight}
-                                fill={isCall ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}
+                                x={0}
+                                y={y - 1}
+                                width={400}
+                                height={barHeight + 2}
+                                fill="rgba(37, 99, 235, 0.1)"
                               />
                             )}
-                            {/* Bar */}
-                            <rect
-                              x={x}
-                              y={y}
-                              width={barWidth}
-                              height={Math.max(barHeight, 1)}
-                              fill={isSelected ? selectedBarColor : barColor}
-                              opacity={isSelected ? 1 : 0.65}
-                              rx={0.5}
-                              className="transition-all duration-150 hover:opacity-100 cursor-pointer"
-                            >
-                              <title>{`Strike: $${item.strike.toLocaleString()}\nOpen Interest: ${item.openInterest.toLocaleString()}\n${oiPctOfMax}% of max OI${isSelected ? '\n★ Currently Selected' : ''}`}</title>
-                            </rect>
-                            {/* Strike label */}
-                            {(index % Math.ceil(oiData.length / 7) === 0 || isSelected) && (
-                              <text
-                                x={x + barWidth / 2}
-                                y={histogramHeight - 3}
-                                textAnchor="middle"
-                                fontSize="7"
-                                fontWeight={isSelected ? 'bold' : 'normal'}
-                                fill={isSelected ? selectedBarColor : '#9ca3af'}
+                            {/* Call bar (left side, green) */}
+                            {callBarWidth > 0 && (
+                              <rect
+                                x={200 - callBarWidth}
+                                y={y}
+                                width={callBarWidth}
+                                height={barHeight}
+                                fill={isSelected && isCall ? '#15803d' : '#22c55e'}
+                                opacity={isSelected && isCall ? 1 : 0.7}
+                                rx={0.5}
+                                className="transition-all duration-150 hover:opacity-100 cursor-pointer"
                               >
-                                {item.strike}
-                              </text>
+                                <title>{`Strike: $${strikeVal.toLocaleString()}\nCall OI: ${callOi.toLocaleString()}${isSelected ? '\n★ Currently Selected' : ''}`}</title>
+                              </rect>
                             )}
-                            {/* Selected indicator dot */}
-                            {isSelected && barHeight > 8 && (
-                              <circle
-                                cx={x + barWidth / 2}
-                                cy={y - 4}
-                                r={2.5}
-                                fill={selectedBarColor}
-                                stroke="white"
-                                strokeWidth="1"
-                              />
+                            {/* Put bar (right side, red) */}
+                            {putBarWidth > 0 && (
+                              <rect
+                                x={200}
+                                y={y}
+                                width={putBarWidth}
+                                height={barHeight}
+                                fill={isSelected && !isCall ? '#b91c1c' : '#ef4444'}
+                                opacity={isSelected && !isCall ? 1 : 0.7}
+                                rx={0.5}
+                                className="transition-all duration-150 hover:opacity-100 cursor-pointer"
+                              >
+                                <title>{`Strike: $${strikeVal.toLocaleString()}\nPut OI: ${putOi.toLocaleString()}${isSelected ? '\n★ Currently Selected' : ''}`}</title>
+                              </rect>
+                            )}
+                            {/* Strike label (only show some to avoid clutter) */}
+                            {(index % Math.ceil(sortedStrikes.length / 6) === 0 || isSelected) && (
+                              <text
+                                x={200}
+                                y={y + barHeight / 2 + 3}
+                                textAnchor="middle"
+                                fontSize="6"
+                                fontWeight={isSelected ? 'bold' : 'normal'}
+                                fill={isSelected ? '#2563eb' : '#9ca3af'}
+                              >
+                                {strikeVal}
+                              </text>
                             )}
                           </g>
                         );
                       })}
+
+                      {/* Labels */}
+                      <text x="10" y={histogramHeight - 3} fontSize="8" fill="#22c55e" fontWeight="600">CALLS</text>
+                      <text x="390" y={histogramHeight - 3} fontSize="8" fill="#ef4444" fontWeight="600" textAnchor="end">PUTS</text>
                     </svg>
                   </div>
                 </div>
 
-                {/* Compact Legend & Selected Info */}
-                <div className="px-2.5 pb-2 flex items-center justify-between text-[9px] text-gray-500">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-sm ${isCall ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                      OI
-                    </span>
-                    <span className="flex items-center gap-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-sm ${isCall ? 'bg-green-800' : 'bg-red-800'}`}></span>
-                      Selected
-                    </span>
+                {/* Selected Strike Info */}
+                {selectedStrike && (
+                  <div className="px-2.5 pb-2 text-[9px] text-gray-600 text-center">
+                    ${selectedStrike}:
+                    <span className="text-green-600 ml-1">Call OI {selectedCallOi.toLocaleString()}</span>
+                    <span className="mx-1">|</span>
+                    <span className="text-red-600">Put OI {selectedPutOi.toLocaleString()}</span>
                   </div>
-                  {selectedStrike && (
-                    <span className="text-gray-600">
-                      ${selectedStrike}: <span className="font-semibold">{selectedOi.toLocaleString()}</span> OI
-                      {selectedOiRank <= 3 && <span className="ml-1 text-amber-600">(#{selectedOiRank})</span>}
-                    </span>
-                  )}
-                </div>
+                )}
               </>
             )}
           </div>

@@ -12,7 +12,14 @@ export async function GET(
     const { ticker, expiration } = await params;
     const backendUrl = getBackendUrl();
 
-    const response = await fetch(`${backendUrl}/api/chain/options/${ticker}/${expiration}`, {
+    // Forward query parameters (e.g., include_greeks=true)
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `${backendUrl}/api/chain/options/${ticker}/${expiration}?${queryString}`
+      : `${backendUrl}/api/chain/options/${ticker}/${expiration}`;
+
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
       },
