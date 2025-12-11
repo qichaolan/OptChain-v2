@@ -255,57 +255,50 @@ function ContractsTable({
     return `${base} hover:bg-gray-50`;
   };
 
-  // Mobile view - simplified columns
+  // Mobile view - card-based layout
   if (isMobile) {
     return (
-      <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0 z-10">
-            <tr>
-              <th className="px-2 py-2 text-left">Strike</th>
-              <th className="px-2 py-2 text-left">Exp</th>
-              <th className="px-2 py-2 text-right">Cost</th>
-              <th className="px-2 py-2 text-right">
-                <div className="flex items-center justify-end">
-                  <span>ROI</span>
-                  <Tooltip text="ROI = (Payoff - Cost) / Cost. Shows your potential return if the stock reaches the target price." />
-                </div>
-              </th>
-              <th className="px-2 py-2 text-right">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contracts.map((contract, idx) => (
-              <tr
-                key={`${contract.contract_symbol}-${idx}`}
-                className={getRowClass(contract)}
-                onClick={() => onSelectContract(contract)}
-              >
-                <td className="px-2 py-2 font-medium">
-                  {formatCurrency(contract.strike)}
-                </td>
-                <td className="px-2 py-2 text-gray-600">
-                  {contract.expiration}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  {formatCurrency(contract.cost)}
-                </td>
-                <td className="px-2 py-2 text-right font-medium text-green-600">
-                  {formatPercent(contract.roi_target)}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${
-                    contract.score >= 0.7 ? 'bg-green-100 text-green-700' :
-                    contract.score >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {formatNumber(contract.score, 2)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="max-h-[500px] overflow-y-auto px-2 py-2 space-y-2">
+        {contracts.map((contract, idx) => (
+          <div
+            key={`${contract.contract_symbol}-${idx}`}
+            className={`p-3 rounded-lg border transition-all ${
+              isSelected(contract)
+                ? 'bg-blue-50 border-blue-300 shadow-md'
+                : 'bg-white border-gray-200 hover:border-blue-200 hover:shadow-sm'
+            }`}
+            onClick={() => onSelectContract(contract)}
+          >
+            {/* Header row: Strike + Score */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-lg font-bold text-gray-900">
+                {formatCurrency(contract.strike)}
+              </span>
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                contract.score >= 0.7 ? 'bg-green-100 text-green-700' :
+                contract.score >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                Score: {formatNumber(contract.score, 2)}
+              </span>
+            </div>
+            {/* Details row */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500">Cost:</span>
+                <span className="font-medium">{formatCurrency(contract.cost)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">ROI:</span>
+                <span className="font-semibold text-green-600">{formatPercent(contract.roi_target)}</span>
+              </div>
+            </div>
+            {/* Expiration row */}
+            <div className="mt-1.5 text-xs text-gray-500">
+              Exp: {contract.expiration}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

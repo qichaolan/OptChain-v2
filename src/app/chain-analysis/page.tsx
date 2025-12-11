@@ -493,123 +493,108 @@ function OptionsTable({
     }
   };
 
-  // CSS classes for clickable option cells
-  const getCallCellClass = (call?: OptionContract, isFirst = false) => {
-    const base = 'px-3 py-2 cursor-pointer transition-colors';
-    const selected = isCallSelected(call) ? 'bg-green-100 font-semibold' : '';
-    const hover = call ? 'hover:bg-green-50' : '';
-    const border = isFirst ? 'border-l-4 border-l-green-500' : '';
-    return `${base} ${selected} ${hover} ${border}`.trim();
-  };
-
-  const getPutCellClass = (put?: OptionContract, isFirst = false) => {
-    const base = 'px-3 py-2 cursor-pointer transition-colors';
-    const selected = isPutSelected(put) ? 'bg-red-100 font-semibold' : '';
-    const hover = put ? 'hover:bg-red-50' : '';
-    const border = isFirst ? 'border-l-4 border-l-red-500' : '';
-    return `${base} ${selected} ${hover} ${border}`.trim();
-  };
-
-  // Mobile-optimized table
+  // Mobile-optimized card layout
   if (isMobile) {
+    // For "both" filter, show side-by-side call/put cards per strike
+    // For single filter (call/put), show individual option cards
     return (
-      <div ref={tableContainerRef} className="max-h-[500px] overflow-y-auto overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0 z-10">
-            <tr>
-              {/* Strike first when filtering by call or put only */}
-              {filter !== 'both' && (
-                <th className="px-2 py-2 text-center font-bold bg-gray-200">Strike</th>
-              )}
-              {(filter === 'both' || filter === 'call') && (
-                <>
-                  <th className="px-2 py-2 text-left text-green-700 border-l-4 border-l-green-500">Premium</th>
-                  <th className="px-2 py-2 text-right text-green-700">IV%</th>
-                </>
-              )}
-              {/* Strike in middle for both filter */}
-              {filter === 'both' && (
-                <th className="px-2 py-2 text-center font-bold bg-gray-200">Strike</th>
-              )}
-              {(filter === 'both' || filter === 'put') && (
-                <>
-                  <th className="px-2 py-2 text-left text-red-700 border-l-4 border-l-red-500">Premium</th>
-                  <th className="px-2 py-2 text-right text-red-700">IV%</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {allStrikes.map((strike) => {
-              const call = getCallForStrike(strike);
-              const put = getPutForStrike(strike);
-              const isAtm = strike <= underlyingPrice && (allStrikes[allStrikes.indexOf(strike) + 1] || Infinity) > underlyingPrice;
-              const callSelected = isCallSelected(call);
-              const putSelected = isPutSelected(put);
+      <div ref={tableContainerRef} className="max-h-[500px] overflow-y-auto px-2 py-2 space-y-2">
+        {allStrikes.map((strike) => {
+          const call = getCallForStrike(strike);
+          const put = getPutForStrike(strike);
+          const isAtm = strike <= underlyingPrice && (allStrikes[allStrikes.indexOf(strike) + 1] || Infinity) > underlyingPrice;
+          const callSelected = isCallSelected(call);
+          const putSelected = isPutSelected(put);
 
-              return (
-                <tr
-                  key={strike}
-                  ref={isAtmStrike(strike, atmStrike) ? atmRowRef : undefined}
-                  className={`border-b ${isAtm ? 'bg-yellow-50' : ''}`}
-                >
-                  {/* Strike first when filtering */}
-                  {filter !== 'both' && (
-                    <td className="px-2 py-2 text-center font-semibold bg-gray-50">
-                      {formatCurrency(strike)}
-                    </td>
-                  )}
-                  {(filter === 'both' || filter === 'call') && (
-                    <>
-                      <td
-                        className={`px-2 py-2 cursor-pointer transition-colors border-l-4 ${
-                          callSelected ? 'bg-green-100 font-semibold border-l-green-600' : 'border-l-green-300 hover:bg-green-50'
-                        } ${!call ? 'text-gray-400' : ''}`}
-                        onClick={(e) => handleOptionClick(call, e)}
-                      >
-                        {call ? formatCurrency(call.lastPrice) : '-'}
-                      </td>
-                      <td
-                        className={`px-2 py-2 text-right cursor-pointer transition-colors ${
-                          callSelected ? 'bg-green-100' : 'hover:bg-green-50'
-                        } ${!call ? 'text-gray-400' : 'text-gray-600'}`}
-                        onClick={(e) => handleOptionClick(call, e)}
-                      >
-                        {call ? formatPercent(call.impliedVolatility) : '-'}
-                      </td>
-                    </>
-                  )}
-                  {/* Strike in middle for both filter */}
-                  {filter === 'both' && (
-                    <td className="px-2 py-2 text-center font-semibold bg-gray-50">
-                      {formatCurrency(strike)}
-                    </td>
-                  )}
-                  {(filter === 'both' || filter === 'put') && (
-                    <>
-                      <td
-                        className={`px-2 py-2 cursor-pointer transition-colors border-l-4 ${
-                          putSelected ? 'bg-red-100 font-semibold border-l-red-600' : 'border-l-red-300 hover:bg-red-50'
-                        } ${!put ? 'text-gray-400' : ''}`}
-                        onClick={(e) => handleOptionClick(put, e)}
-                      >
-                        {put ? formatCurrency(put.lastPrice) : '-'}
-                      </td>
-                      <td
-                        className={`px-2 py-2 text-right cursor-pointer transition-colors ${
-                          putSelected ? 'bg-red-100' : 'hover:bg-red-50'
-                        } ${!put ? 'text-gray-400' : 'text-gray-600'}`}
-                        onClick={(e) => handleOptionClick(put, e)}
-                      >
-                        {put ? formatPercent(put.impliedVolatility) : '-'}
-                      </td>
-                    </>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+          if (filter === 'both') {
+            // Show side-by-side call/put for the same strike
+            return (
+              <div
+                key={strike}
+                ref={isAtmStrike(strike, atmStrike) ? atmRowRef : undefined}
+                className={`rounded-lg border ${isAtm ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-white'}`}
+              >
+                {/* Strike header */}
+                <div className={`text-center py-1.5 text-sm font-bold border-b ${isAtm ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
+                  {formatCurrency(strike)} {isAtm && <span className="text-xs font-normal">(ATM)</span>}
+                </div>
+                {/* Call and Put side by side */}
+                <div className="flex">
+                  {/* Call side */}
+                  <div
+                    className={`flex-1 p-2 cursor-pointer transition-colors border-r ${
+                      callSelected ? 'bg-green-100' : 'hover:bg-green-50'
+                    } ${!call ? 'opacity-50' : ''}`}
+                    onClick={(e) => handleOptionClick(call, e)}
+                  >
+                    <div className="text-xs text-green-700 font-semibold mb-1">CALL</div>
+                    <div className="text-sm font-medium">{call ? formatCurrency(call.lastPrice) : '-'}</div>
+                    <div className="text-xs text-gray-500">IV: {call ? formatPercent(call.impliedVolatility) : '-'}</div>
+                  </div>
+                  {/* Put side */}
+                  <div
+                    className={`flex-1 p-2 cursor-pointer transition-colors ${
+                      putSelected ? 'bg-red-100' : 'hover:bg-red-50'
+                    } ${!put ? 'opacity-50' : ''}`}
+                    onClick={(e) => handleOptionClick(put, e)}
+                  >
+                    <div className="text-xs text-red-700 font-semibold mb-1">PUT</div>
+                    <div className="text-sm font-medium">{put ? formatCurrency(put.lastPrice) : '-'}</div>
+                    <div className="text-xs text-gray-500">IV: {put ? formatPercent(put.impliedVolatility) : '-'}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Single filter (call or put only)
+          const option = filter === 'call' ? call : put;
+          const optionSelected = filter === 'call' ? callSelected : putSelected;
+          const isCall = filter === 'call';
+
+          if (!option) return null;
+
+          return (
+            <div
+              key={strike}
+              ref={isAtmStrike(strike, atmStrike) ? atmRowRef : undefined}
+              className={`p-3 rounded-lg border transition-all ${
+                optionSelected
+                  ? isCall ? 'bg-green-50 border-green-300 shadow-md' : 'bg-red-50 border-red-300 shadow-md'
+                  : isCall ? 'bg-white border-gray-200 hover:border-green-200 hover:shadow-sm' : 'bg-white border-gray-200 hover:border-red-200 hover:shadow-sm'
+              } ${isAtm ? 'ring-2 ring-yellow-400' : ''}`}
+              onClick={(e) => handleOptionClick(option, e)}
+            >
+              {/* Header row: Strike + Type badge */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-900">{formatCurrency(strike)}</span>
+                  {isAtm && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">ATM</span>}
+                </div>
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                  isCall ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {isCall ? 'CALL' : 'PUT'}
+                </span>
+              </div>
+              {/* Details row */}
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">Premium:</span>
+                  <span className="font-semibold">{formatCurrency(option.lastPrice)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">IV:</span>
+                  <span className="font-medium">{formatPercent(option.impliedVolatility)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">OI:</span>
+                  <span className="font-medium">{formatNumber(option.openInterest)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   }

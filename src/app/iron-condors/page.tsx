@@ -269,50 +269,64 @@ function CondorsTable({
     return `${base} hover:bg-gray-50`;
   };
 
-  // Mobile view - simplified columns
+  // Mobile view - card-based layout
   if (isMobile) {
     return (
-      <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0 z-10">
-            <tr>
-              <th className="px-2 py-2 text-left">Exp</th>
-              <th className="px-2 py-2 text-right">Credit</th>
-              <th className="px-2 py-2 text-right">ROR</th>
-              <th className="px-2 py-2 text-right">POP</th>
-              <th className="px-2 py-2 text-right">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {condors.map((condor) => (
-              <tr
-                key={condor.id}
-                className={getRowClass(condor)}
-                onClick={() => onSelectCondor(condor)}
-              >
-                <td className="px-2 py-2 text-sm">{condor.expiration}</td>
-                <td className="px-2 py-2 text-right font-medium text-green-600">
-                  {formatCurrency(condor.total_credit)}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  {formatPercent(condor.ror)}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  {formatPercent(condor.combined_pop)}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${
-                    condor.combined_score >= 0.7 ? 'bg-green-100 text-green-700' :
-                    condor.combined_score >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {formatNumber(condor.combined_score, 2)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="max-h-[500px] overflow-y-auto px-2 py-2 space-y-2">
+        {condors.map((condor) => (
+          <div
+            key={condor.id}
+            className={`p-3 rounded-lg border transition-all ${
+              isSelected(condor)
+                ? 'bg-purple-50 border-purple-300 shadow-md'
+                : 'bg-white border-gray-200 hover:border-purple-200 hover:shadow-sm'
+            }`}
+            onClick={() => onSelectCondor(condor)}
+          >
+            {/* Header row: Expiration + Score */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">IC</span>
+                <span className="font-medium text-gray-900">{condor.expiration}</span>
+                <span className="text-sm text-gray-500">{condor.dte}d</span>
+              </div>
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                condor.combined_score >= 0.7 ? 'bg-green-100 text-green-700' :
+                condor.combined_score >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                Score: {formatNumber(condor.combined_score, 2)}
+              </span>
+            </div>
+            {/* Strikes visualization */}
+            <div className="bg-gray-50 rounded px-2 py-1.5 mb-2 text-xs">
+              <div className="flex items-center justify-between text-gray-600">
+                <span>Put: {formatCurrency(condor.long_put)}/{formatCurrency(condor.short_put)}</span>
+                <span>Call: {formatCurrency(condor.short_call)}/{formatCurrency(condor.long_call)}</span>
+              </div>
+            </div>
+            {/* Credit, ROR, POP row */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">Credit:</span>
+                <span className="font-semibold text-green-600">{formatCurrency(condor.total_credit)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">ROR:</span>
+                <span className="font-medium">{formatPercent(condor.ror)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">POP:</span>
+                <span className="font-medium">{formatPercent(condor.combined_pop)}</span>
+              </div>
+            </div>
+            {/* Max Loss row */}
+            <div className="mt-1.5 flex items-center justify-between text-xs text-gray-500">
+              <span>Max Loss: <span className="text-red-600">{formatCurrency(condor.max_loss)}</span></span>
+              <span>Width: ${condor.width.toFixed(0)}</span>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
