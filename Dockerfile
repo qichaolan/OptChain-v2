@@ -128,12 +128,6 @@ COPY --from=deps /app/node_modules/strnum ./node_modules/strnum
 # Copy sharp for Next.js image optimization (from Debian-based stage for glibc)
 COPY --from=sharp-deps /app/node_modules/sharp ./node_modules/sharp
 COPY --from=sharp-deps /app/node_modules/@img ./node_modules/@img
-COPY --from=sharp-deps /app/node_modules/color ./node_modules/color
-COPY --from=sharp-deps /app/node_modules/color-convert ./node_modules/color-convert
-COPY --from=sharp-deps /app/node_modules/color-name ./node_modules/color-name
-COPY --from=sharp-deps /app/node_modules/color-string ./node_modules/color-string
-COPY --from=sharp-deps /app/node_modules/simple-swizzle ./node_modules/simple-swizzle
-COPY --from=sharp-deps /app/node_modules/is-arrayish ./node_modules/is-arrayish
 COPY --from=sharp-deps /app/node_modules/detect-libc ./node_modules/detect-libc
 COPY --from=sharp-deps /app/node_modules/semver ./node_modules/semver
 

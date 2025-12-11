@@ -6,15 +6,14 @@
 const ALLOWED_BACKENDS = [
   'http://localhost:8081',  // Internal backend (same container)
   'http://127.0.0.1:8081',
-  'http://localhost:8080',  // Dev fallback
-  'http://127.0.0.1:8080',
   // Add production backend URLs here
   process.env.OPTCHAIN_BACKEND_URL,
 ].filter(Boolean);
 
 function getValidatedBackendUrl() {
   // Default to port 8081 for the internal FastAPI backend
-  const backendUrl = process.env.OPTCHAIN_BACKEND_URL || 'http://localhost:8081';
+  // Note: process.env is not populated from .env files when next.config.js runs
+  const backendUrl = process.env.OPTCHAIN_BACKEND_URL || 'http://127.0.0.1:8081';
 
   // In production, warn if backend URL is not in the whitelist
   // Don't throw - let the app start and fail gracefully on actual requests
@@ -170,6 +169,15 @@ const nextConfig = {
       {
         source: '/api/backend-health',
         destination: `${backendUrl}/health`,
+      },
+      // Proxy Chain Analysis API routes
+      {
+        source: '/api/chain/expirations/:ticker',
+        destination: `${backendUrl}/api/chain/expirations/:ticker`,
+      },
+      {
+        source: '/api/chain/options/:ticker/:expiration',
+        destination: `${backendUrl}/api/chain/options/:ticker/:expiration`,
       },
     ];
   },
