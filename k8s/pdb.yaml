@@ -1,0 +1,13 @@
+# OptChain PodDisruptionBudget - ensure high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: optchain-pdb
+  namespace: optchain
+  labels:
+    app: optchain
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: optchain

@@ -1,0 +1,8 @@
+# OptChain Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: optchain
+  labels:
+    app: optchain
+    environment: production

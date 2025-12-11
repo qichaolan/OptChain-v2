@@ -1,0 +1,23 @@
+# OptChain ConfigMap - Non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: optchain-config
+  namespace: optchain
+  labels:
+    app: optchain
+data:
+  # Application settings
+  NODE_ENV: "production"
+  PORT: "8080"
+  HOSTNAME: "0.0.0.0"
+
+  # Backend settings
+  BACKEND_PORT: "8081"
+  OPTCHAIN_BACKEND_URL: "http://localhost:8081"
+
+  # Prompts directory (downloaded from GCS at runtime)
+  PROMPTS_DIR: "/app/prompts"
+
+  # GCS path for prompts (optional - set to download proprietary prompts)
+  # GCS_PROMPTS_PATH: "gs://your-bucket/prompts"

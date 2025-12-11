@@ -1,0 +1,75 @@
+# OptChain Ingress with GKE Managed Certificate
+# Prerequisites:
+# 1. Reserve a static IP: gcloud compute addresses create optchain-ip --global
+# 2. Update your DNS to point to this IP
+# 3. Update the host below with your domain
+
+---
+# Managed Certificate for HTTPS
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: optchain-cert
+  namespace: optchain
+spec:
+  domains:
+    - optchain.app
+    - www.optchain.app
+
+---
+# Frontend Config for HTTP to HTTPS redirect
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: optchain-frontend-config
+  namespace: optchain
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: optchain-ingress
+  namespace: optchain
+  labels:
+    app: optchain
+  annotations:
+    # Use GKE Ingress controller
+    kubernetes.io/ingress.class: "gce"
+    # Static IP address (create with: gcloud compute addresses create optchain-ip --global)
+    kubernetes.io/ingress.global-static-ip-name: "optchain-ip"
+    # Managed certificate
+    networking.gke.io/managed-certificates: "optchain-cert"
+    # Frontend config for HTTPS redirect
+    networking.gke.io/v1beta1.FrontendConfig: "optchain-frontend-config"
+spec:
+  defaultBackend:
+    service:
+      name: optchain
+      port:
+        number: 80
+  rules:
+    - host: optchain.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: optchain
+                port:
+                  number: 80
+    - host: www.optchain.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: optchain
+                port:
+                  number: 80

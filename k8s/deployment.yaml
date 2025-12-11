@@ -1,0 +1,133 @@
+# OptChain Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: optchain
+  namespace: optchain
+  labels:
+    app: optchain
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: optchain
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: optchain
+        version: v1
+      annotations:
+        # Force rolling restart when configmap changes
+        checksum/config: "{{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}"
+    spec:
+      serviceAccountName: optchain-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+
+      containers:
+        - name: optchain
+          # Update with your GCR/Artifact Registry image path
+          image: gcr.io/PROJECT_ID/optchain:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: optchain-config
+
+          # Sensitive environment variables from Secret
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: optchain-secrets
+                  key: GEMINI_API_KEY
+            - name: GCS_PROMPTS_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: optchain-secrets
+                  key: GCS_PROMPTS_PATH
+                  optional: true
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/secrets/gcp/key.json"
+
+          # Mount GCP credentials
+          volumeMounts:
+            - name: gcp-credentials
+              mountPath: /secrets/gcp
+              readOnly: true
+
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+
+          # Liveness probe - is the container alive?
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe - is the container ready to serve traffic?
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # Startup probe - give time for initial startup
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+
+      volumes:
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials
+            optional: true
+
+      # Pod disruption budget - ensure availability during updates
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - optchain
+                topologyKey: kubernetes.io/hostname
+
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 30

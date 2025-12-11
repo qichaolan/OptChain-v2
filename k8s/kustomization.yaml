@@ -1,0 +1,28 @@
+# Kustomization for OptChain GKE deployment
+# Deploy with: kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: optchain
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - configmap.yaml
+  # Note: Create secrets manually, don't commit real values
+  # - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/name: optchain
+  app.kubernetes.io/managed-by: kustomize
+
+# Image customization - update tag during CI/CD
+images:
+  - name: gcr.io/PROJECT_ID/optchain
+    newName: gcr.io/PROJECT_ID/optchain
+    newTag: latest
