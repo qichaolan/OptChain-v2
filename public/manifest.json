@@ -1,0 +1,18 @@
+{
+  "name": "OptChain - AI-Powered Options Analysis",
+  "short_name": "OptChain",
+  "description": "Free AI-powered stock options analysis tool for LEAPS, Credit Spreads, and Iron Condors",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/opt.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "utilities"]
+}

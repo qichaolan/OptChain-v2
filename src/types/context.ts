@@ -67,11 +67,11 @@ export interface LeapsMetadata {
   mode: 'high_prob' | 'high_convexity';
   contract: LeapsContract;
   roiResults: LeapsRoiResult[];
-  breakeven?: number;
-  maxLoss?: number;
+  breakeven: number;
+  maxLoss: number;
   daysToExpiration?: number;
-  /** Optional array of available contracts for Battle Mode comparison */
-  availableContracts?: LeapsContract[];
+  /** Array of available contracts for Battle Mode comparison */
+  availableContracts: LeapsContract[];
 }
 
 // ============================================================================
@@ -190,20 +190,20 @@ export interface ChainAnalysisMetadata {
   selectedOption?: OptionContract;
   optionType?: 'call' | 'put';
   // Calculated metrics for selected option
-  breakeven?: number;
-  maxLoss?: number;
+  breakeven: number;
+  maxLoss: number;
   leverage?: number;
   stockEquivalent?: number;
   hurdleRate?: number;
-  distToBreakeven?: number;
+  distToBreakeven: number;
   // Total premium across all strikes (OI * mid price * 100)
-  totalCallPremium?: number;
-  totalPutPremium?: number;
+  totalCallPremium: number;
+  totalPutPremium: number;
   // Open Interest data for histogram
-  callOiData?: StrikeOiData[];
-  putOiData?: StrikeOiData[];
-  /** Optional array of available options for Battle Mode comparison */
-  availableOptions?: OptionContract[];
+  callOiData: StrikeOiData[];
+  putOiData: StrikeOiData[];
+  /** Array of available options for Battle Mode comparison */
+  availableOptions: OptionContract[];
 }
 
 // ============================================================================

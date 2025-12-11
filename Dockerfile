@@ -12,7 +12,14 @@ COPY package.json package-lock.json* ./
 RUN npm ci --only=production
 
 # ============================================================================
-# Stage 2: Build Next.js
+# Stage 2: Sharp dependencies (Debian-based for glibc compatibility)
+# ============================================================================
+FROM node:18-slim AS sharp-deps
+WORKDIR /app
+RUN npm install sharp
+
+# ============================================================================
+# Stage 3: Build Next.js application
 # ============================================================================
 FROM node:18-alpine AS builder
 WORKDIR /app
@@ -26,7 +33,7 @@ RUN rm -rf backend
 RUN npm run build
 
 # ============================================================================
-# Stage 3: Python backend preparation
+# Stage 4: Python backend preparation
 # ============================================================================
 FROM python:3.12-slim AS python-deps
 WORKDIR /backend
@@ -41,7 +48,7 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ============================================================================
-# Stage 4: Final production image
+# Stage 5: Final production image
 # ============================================================================
 FROM python:3.12-slim AS runner
 WORKDIR /app
@@ -118,8 +125,17 @@ COPY --from=deps /app/node_modules/ms ./node_modules/ms
 COPY --from=deps /app/node_modules/fast-xml-parser ./node_modules/fast-xml-parser
 COPY --from=deps /app/node_modules/strnum ./node_modules/strnum
 
-# Install sharp for Next.js image optimization in standalone mode
-RUN npm install --cpu=x64 --os=linux sharp
+# Copy sharp for Next.js image optimization (from Debian-based stage for glibc)
+COPY --from=sharp-deps /app/node_modules/sharp ./node_modules/sharp
+COPY --from=sharp-deps /app/node_modules/@img ./node_modules/@img
+COPY --from=sharp-deps /app/node_modules/color ./node_modules/color
+COPY --from=sharp-deps /app/node_modules/color-convert ./node_modules/color-convert
+COPY --from=sharp-deps /app/node_modules/color-name ./node_modules/color-name
+COPY --from=sharp-deps /app/node_modules/color-string ./node_modules/color-string
+COPY --from=sharp-deps /app/node_modules/simple-swizzle ./node_modules/simple-swizzle
+COPY --from=sharp-deps /app/node_modules/is-arrayish ./node_modules/is-arrayish
+COPY --from=sharp-deps /app/node_modules/detect-libc ./node_modules/detect-libc
+COPY --from=sharp-deps /app/node_modules/semver ./node_modules/semver
 
 # ============================================================================
 # Copy Python backend and dependencies

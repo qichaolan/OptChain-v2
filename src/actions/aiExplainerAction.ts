@@ -37,6 +37,9 @@ This action takes simulation data and returns structured analysis including:
 
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
+// Set to true to enable metadata logging before AI requests
+const DEBUG_LOG_METADATA = true;
+
 // ============================================================================
 // Action Handler
 // ============================================================================
@@ -60,6 +63,17 @@ export async function handleAiExplainerAction(
         success: false,
         error: 'Invalid context: missing required fields',
       };
+    }
+
+    // Log metadata before sending to AI (for debugging)
+    if (DEBUG_LOG_METADATA) {
+      console.group(`🤖 AI Analysis Request - ${context.page}`);
+      console.log('Page:', context.page);
+      console.log('Context Type:', context.contextType);
+      console.log('Timestamp:', context.timestamp);
+      console.log('Settings:', context.settings);
+      console.log('Metadata:', JSON.stringify(context.metadata, null, 2));
+      console.groupEnd();
     }
 
     // Call our backend API with abort controller for timeout
