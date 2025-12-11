@@ -786,6 +786,54 @@ export default function LeapsPage() {
             <span className="hidden sm:inline">AI Insights</span>
           </button>
         )}
+
+        {/* Mobile AI Panel - Bottom Sheet */}
+        {currentMetadata && showAiPanel && (
+          <div className="md:hidden fixed inset-0 z-[70]">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowAiPanel(false)}
+            />
+            {/* Bottom Sheet */}
+            <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-white rounded-t-2xl shadow-2xl flex flex-col animate-slide-up">
+              {/* Handle bar */}
+              <div className="flex justify-center py-2">
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+              </div>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🤖</span>
+                  <h4 className="font-bold text-white">AI Insights</h4>
+                </div>
+                <button
+                  onClick={() => setShowAiPanel(false)}
+                  className="p-2 hover:bg-white/20 rounded-lg text-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                <InlineAiInsights size="detailed" autoAnalyze={true} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CSS for mobile animation */}
+        <style jsx>{`
+          @keyframes slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
+          .animate-slide-up {
+            animation: slide-up 0.3s ease-out;
+          }
+        `}</style>
       </div>
     </div>
   );

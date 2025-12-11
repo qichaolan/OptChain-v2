@@ -59,14 +59,26 @@ export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
   };
 
   // Header height is defined here as a CSS variable for consistent layout
-  const headerHeight = '56px';
+  // Mobile: ~100px (2 rows with nav), Desktop: 56px (1 row)
+  // Using CSS media query in style for proper responsive handling
 
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-4 py-2 shadow-sm"
-      style={{ '--app-header-height': headerHeight } as React.CSSProperties}
-    >
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <>
+      {/* CSS for responsive header height variable */}
+      <style jsx global>{`
+        :root {
+          --app-header-height: 100px;
+        }
+        @media (min-width: 768px) {
+          :root {
+            --app-header-height: 56px;
+          }
+        }
+      `}</style>
+      <header
+        className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-4 py-2 shadow-sm"
+      >
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
             <Image
@@ -97,7 +109,8 @@ export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
             ))}
         </nav>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
 

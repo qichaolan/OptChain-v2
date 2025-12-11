@@ -125,7 +125,156 @@ class ChainRequest(BaseModel):
 
 
 # =============================================================================
-# Data Fetching Functions
+# Data Fetching Functions - CBOE (Primary)
+# =============================================================================
+
+CBOE_API_URL = "https://cdn.cboe.com/api/global/delayed_quotes/options"
+CBOE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json",
+}
+
+
+def _parse_cboe_option_symbol(option_symbol: str) -> dict:
+    """
+    Parse CBOE option symbol to extract components.
+    Format: SPY251210C00500000
+    - Symbol: SPY
+    - Date: 251210 (YYMMDD)
+    - Type: C (call) or P (put)
+    - Strike: 00500000 (price * 1000)
+    """
+    import re
+    match = re.match(r'^([A-Z]+)(\d{6})([CP])(\d{8})$', option_symbol)
+    if not match:
+        return {}
+
+    symbol, date_str, opt_type, strike_str = match.groups()
+
+    # Parse date (YYMMDD -> YYYY-MM-DD)
+    year = 2000 + int(date_str[:2])
+    month = int(date_str[2:4])
+    day = int(date_str[4:6])
+    expiration = f"{year}-{month:02d}-{day:02d}"
+
+    # Parse strike (divide by 1000)
+    strike = int(strike_str) / 1000.0
+
+    return {
+        "symbol": symbol,
+        "expiration": expiration,
+        "option_type": "call" if opt_type == "C" else "put",
+        "strike": strike,
+    }
+
+
+def _fetch_cboe_data(symbol: str) -> dict:
+    """
+    Fetch all options data from CBOE for a symbol.
+    Returns raw CBOE API response.
+    """
+    import requests
+
+    url = f"{CBOE_API_URL}/{symbol}.json"
+
+    try:
+        response = requests.get(url, headers=CBOE_HEADERS, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"CBOE API error for {symbol}: {e}")
+        raise ValueError(f"Failed to fetch data from CBOE for {symbol}")
+
+
+def _fetch_expirations_cboe(symbol: str) -> tuple[float, List[str]]:
+    """
+    Fetch available expiration dates from CBOE.
+    Returns (underlying_price, list_of_expiration_dates).
+    """
+    try:
+        data = _fetch_cboe_data(symbol)
+
+        # Get underlying price
+        underlying_price = float(data['data'].get('current_price', 0))
+        if underlying_price <= 0:
+            raise ValueError(f"No price data available for {symbol}")
+
+        # Extract unique expiration dates from all options
+        expirations = set()
+        for opt in data['data'].get('options', []):
+            parsed = _parse_cboe_option_symbol(opt.get('option', ''))
+            if parsed.get('expiration'):
+                expirations.add(parsed['expiration'])
+
+        if not expirations:
+            raise ValueError(f"No options available for {symbol}")
+
+        return underlying_price, sorted(list(expirations))
+
+    except Exception as e:
+        logger.error(f"CBOE expirations error for {symbol}: {e}")
+        raise
+
+
+def _fetch_options_chain_cboe(symbol: str, expiration: str) -> tuple[float, List[dict], List[dict]]:
+    """
+    Fetch options chain data from CBOE for a specific expiration.
+    Returns (underlying_price, calls_list, puts_list).
+    """
+    try:
+        data = _fetch_cboe_data(symbol)
+
+        # Get underlying price
+        underlying_price = float(data['data'].get('current_price', 0))
+        if underlying_price <= 0:
+            raise ValueError(f"No price data available for {symbol}")
+
+        calls = []
+        puts = []
+
+        for opt in data['data'].get('options', []):
+            parsed = _parse_cboe_option_symbol(opt.get('option', ''))
+
+            # Skip if not matching expiration
+            if parsed.get('expiration') != expiration:
+                continue
+
+            option_data = {
+                "contract_symbol": opt.get('option', ''),
+                "option_type": parsed.get('option_type', 'call'),
+                "strike": parsed.get('strike', 0),
+                "expiration": expiration,
+                "last_price": float(opt.get('last_trade_price', 0) or 0),
+                "bid": float(opt.get('bid', 0) or 0),
+                "ask": float(opt.get('ask', 0) or 0),
+                "volume": int(opt.get('volume', 0) or 0),
+                "open_interest": int(opt.get('open_interest', 0) or 0),
+                "implied_volatility": float(opt.get('iv', 0) or 0),
+                # CBOE provides Greeks directly!
+                "delta": float(opt.get('delta', 0) or 0) if opt.get('delta') is not None else None,
+                "gamma": float(opt.get('gamma', 0) or 0) if opt.get('gamma') is not None else None,
+                "theta": float(opt.get('theta', 0) or 0) if opt.get('theta') is not None else None,
+                "vega": float(opt.get('vega', 0) or 0) if opt.get('vega') is not None else None,
+                "rho": float(opt.get('rho', 0) or 0) if opt.get('rho') is not None else None,
+            }
+
+            if parsed.get('option_type') == 'call':
+                calls.append(option_data)
+            else:
+                puts.append(option_data)
+
+        if not calls and not puts:
+            raise ValueError(f"No options found for {symbol} {expiration}")
+
+        return underlying_price, calls, puts
+
+    except Exception as e:
+        logger.error(f"CBOE chain error for {symbol} {expiration}: {e}")
+        raise
+
+
+# =============================================================================
+# Data Fetching Functions - yfinance (Fallback)
 # =============================================================================
 
 def _fetch_expirations_yfinance(symbol: str) -> tuple[float, List[str]]:
@@ -334,6 +483,7 @@ def _calculate_greeks(
 async def get_expirations(request: Request, symbol: str):
     """
     Get available expiration dates for a ticker.
+    Uses CBOE as primary data source with yfinance as fallback.
 
     Args:
         symbol: Stock ticker (1-5 uppercase letters)
@@ -347,10 +497,26 @@ async def get_expirations(request: Request, symbol: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Try CBOE first (better data quality)
     try:
-        underlying_price, expirations = _fetch_expirations_yfinance(symbol)
+        logger.info(f"Fetching expirations from CBOE for {symbol}")
+        underlying_price, expirations = _fetch_expirations_cboe(symbol)
+        valid_expirations = _filter_valid_expirations(expirations)
 
-        # Filter to valid expirations only
+        if valid_expirations:
+            return ExpirationDateResponse(
+                symbol=symbol,
+                underlying_price=underlying_price,
+                expirations=valid_expirations,
+                timestamp=datetime.now().isoformat()
+            )
+    except Exception as cboe_error:
+        logger.warning(f"CBOE failed for {symbol}, trying yfinance: {cboe_error}")
+
+    # Fallback to yfinance
+    try:
+        logger.info(f"Fetching expirations from yfinance for {symbol}")
+        underlying_price, expirations = _fetch_expirations_yfinance(symbol)
         valid_expirations = _filter_valid_expirations(expirations)
 
         if not valid_expirations:
@@ -402,60 +568,80 @@ async def get_options_chain(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Calculate DTE
+    exp_date = datetime.strptime(expiration, "%Y-%m-%d").date()
+    today = datetime.now().date()
+    dte = (exp_date - today).days
+
+    underlying_price = None
+    calls = None
+    puts = None
+    data_source = None
+
+    # Try CBOE first (better data quality, includes Greeks)
     try:
-        underlying_price, calls, puts = _fetch_options_chain_yfinance(symbol, expiration)
+        logger.info(f"Fetching options chain from CBOE for {symbol} {expiration}")
+        underlying_price, calls, puts = _fetch_options_chain_cboe(symbol, expiration)
+        data_source = "cboe"
+        logger.info(f"CBOE returned {len(calls)} calls and {len(puts)} puts")
+    except Exception as cboe_error:
+        logger.warning(f"CBOE failed for {symbol} {expiration}, trying yfinance: {cboe_error}")
 
-        # Calculate DTE
-        exp_date = datetime.strptime(expiration, "%Y-%m-%d").date()
-        today = datetime.now().date()
-        dte = (exp_date - today).days
+    # Fallback to yfinance if CBOE failed
+    if calls is None or puts is None:
+        try:
+            logger.info(f"Fetching options chain from yfinance for {symbol} {expiration}")
+            underlying_price, calls, puts = _fetch_options_chain_yfinance(symbol, expiration)
+            data_source = "yfinance"
 
-        # Add Greeks if requested
-        if include_greeks:
-            for option in calls:
-                if option.get("implied_volatility"):
-                    greeks = _calculate_greeks(
-                        "call", option["strike"], underlying_price,
-                        dte, option["implied_volatility"]
-                    )
-                    option.update(greeks)
+            # Add Greeks if requested (yfinance doesn't include them, CBOE does)
+            if include_greeks:
+                for option in calls:
+                    if option.get("implied_volatility"):
+                        greeks = _calculate_greeks(
+                            "call", option["strike"], underlying_price,
+                            dte, option["implied_volatility"]
+                        )
+                        option.update(greeks)
 
-            for option in puts:
-                if option.get("implied_volatility"):
-                    greeks = _calculate_greeks(
-                        "put", option["strike"], underlying_price,
-                        dte, option["implied_volatility"]
-                    )
-                    option.update(greeks)
+                for option in puts:
+                    if option.get("implied_volatility"):
+                        greeks = _calculate_greeks(
+                            "put", option["strike"], underlying_price,
+                            dte, option["implied_volatility"]
+                        )
+                        option.update(greeks)
 
-        # Sort by strike price
-        calls.sort(key=lambda x: x["strike"])
-        puts.sort(key=lambda x: x["strike"])
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            logger.error(f"Error fetching chain for {symbol} {expiration}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch options chain for {symbol} {expiration}"
+            )
 
-        # Convert to Pydantic models
-        call_contracts = [OptionContract(**c) for c in calls]
-        put_contracts = [OptionContract(**p) for p in puts]
+    # Sort by strike price
+    calls.sort(key=lambda x: x["strike"])
+    puts.sort(key=lambda x: x["strike"])
 
-        return OptionsChainResponse(
-            symbol=symbol,
-            underlying_price=underlying_price,
-            expiration=expiration,
-            dte=dte,
-            calls=call_contracts,
-            puts=put_contracts,
-            total_calls=len(call_contracts),
-            total_puts=len(put_contracts),
-            timestamp=datetime.now().isoformat()
-        )
+    # Convert to Pydantic models
+    call_contracts = [OptionContract(**c) for c in calls]
+    put_contracts = [OptionContract(**p) for p in puts]
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error fetching chain for {symbol} {expiration}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch options chain for {symbol} {expiration}"
-        )
+    logger.info(f"Returning {len(call_contracts)} calls and {len(put_contracts)} puts from {data_source}")
+
+    return OptionsChainResponse(
+        symbol=symbol,
+        underlying_price=underlying_price,
+        expiration=expiration,
+        dte=dte,
+        calls=call_contracts,
+        puts=put_contracts,
+        total_calls=len(call_contracts),
+        total_puts=len(put_contracts),
+        timestamp=datetime.now().isoformat()
+    )
 
 
 @router.get("/quote/{symbol}")
