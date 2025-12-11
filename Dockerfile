@@ -152,7 +152,8 @@ COPY backend/backtest ./backend/backtest
 # ============================================================================
 COPY scripts/download-prompts.js /app/scripts/download-prompts.js
 RUN mkdir -p /app/prompts
-COPY prompts ./prompts
+# Note: prompts/ is in .gitignore (proprietary). Download from GCS at runtime
+# by setting GCS_PROMPTS_PATH env var, or use default fallback prompts.
 
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
