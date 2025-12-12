@@ -1,0 +1,47 @@
+# Git
+.git/
+.gitignore
+
+# Node
+node_modules/
+.npm/
+
+# Next.js
+.next/
+out/
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Backend venv (not needed for build, requirements.txt is needed)
+backend/.venv/
+backend/__pycache__/
+backend/.coverage
+backend/cache/

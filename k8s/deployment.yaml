@@ -35,7 +35,7 @@ spec:
       containers:
         - name: optchain
           # Update with your GCR/Artifact Registry image path
-          image: gcr.io/PROJECT_ID/optchain:latest
+          image: gcr.io/mythic-delight-114820/optchain:latest
           imagePullPolicy: Always
 
           ports:

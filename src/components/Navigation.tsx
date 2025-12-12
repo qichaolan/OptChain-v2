@@ -23,15 +23,16 @@ export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/', label: 'Chain', color: 'gray' },
-    { href: '/leaps', label: 'LEAPS', color: 'blue' },
-    { href: '/credit-spreads', label: 'Credit Spreads', color: 'green' },
-    { href: '/iron-condors', label: 'Iron Condors', color: 'purple' },
+    { href: '/', label: 'Chain', mobileLabel: 'Chain', color: 'gray' },
+    { href: '/leaps', label: 'LEAPS', mobileLabel: 'LEAPS', color: 'blue' },
+    { href: '/credit-spreads', label: 'Credit Spreads', mobileLabel: 'Spreads', color: 'green' },
+    { href: '/iron-condors', label: 'Iron Condors', mobileLabel: 'Condors', color: 'purple' },
   ];
 
   const getNavItemClass = (href: string, color: string) => {
     const isActive = pathname === href || (href === '/' && pathname === '/chain-analysis');
-    const baseClass = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1';
+    // Mobile: very compact padding, Desktop: normal size
+    const baseClass = 'px-1.5 py-0.5 md:px-3 md:py-1.5 rounded md:rounded-lg text-[10px] md:text-sm font-medium transition-colors flex items-center whitespace-nowrap';
 
     if (isActive) {
       switch (color) {
@@ -59,15 +60,14 @@ export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
   };
 
   // Header height is defined here as a CSS variable for consistent layout
-  // Mobile: ~100px (2 rows with nav), Desktop: 56px (1 row)
-  // Using CSS media query in style for proper responsive handling
+  // Single row layout on all devices: 48px mobile, 56px desktop
 
   return (
     <>
       {/* CSS for responsive header height variable */}
       <style jsx global>{`
         :root {
-          --app-header-height: 100px;
+          --app-header-height: 48px;
         }
         @media (min-width: 768px) {
           :root {
@@ -76,39 +76,39 @@ export function Navigation({ title = 'OptChain', subtitle }: NavigationProps) {
         }
       `}</style>
       <header
-        className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-4 py-2 shadow-sm"
+        className="fixed top-0 left-0 right-0 z-[60] bg-white border-b-2 border-gray-200 px-2 md:px-4 py-1.5 md:py-2 shadow-md"
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
+        {/* Single row layout - all items in one row */}
+        <div className="flex items-center justify-between gap-2 md:gap-4">
+          {/* Logo and title */}
+          <Link href="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <Image
               src="/opt.png"
               alt="OptChain Logo"
-              width={40}
-              height={40}
-              className="rounded-md"
+              width={28}
+              height={28}
+              className="rounded-md md:w-9 md:h-9"
             />
-            {title}
+            <span className="text-sm md:text-lg font-semibold text-gray-800 hover:text-blue-600 transition-colors">
+              {title}
+            </span>
           </Link>
-            {subtitle && (
-              <span className="text-gray-400 text-sm hidden sm:inline">|</span>
-            )}
-            {subtitle && (
-              <span className="text-gray-600 text-sm hidden sm:inline">{subtitle}</span>
-            )}
-          </div>
-          <nav className="flex flex-wrap gap-2 bg-gray-100/80 rounded-xl px-3 py-2 border border-gray-200/60 shadow-inner">
+
+          {/* Navigation tabs - always in same row, scrollable on mobile */}
+          <nav className="flex gap-1 md:gap-2 bg-gray-100/80 rounded-lg px-1.5 md:px-3 py-1 md:py-1.5 border border-gray-200/60 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={getNavItemClass(item.href, item.color)}
               >
-                <span>{item.label}</span>
+                {/* Mobile: short label, Desktop: full label */}
+                <span className="md:hidden">{item.mobileLabel}</span>
+                <span className="hidden md:inline">{item.label}</span>
               </Link>
             ))}
-        </nav>
-      </div>
+          </nav>
+        </div>
       </header>
     </>
   );

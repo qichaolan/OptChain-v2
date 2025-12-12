@@ -80,11 +80,43 @@ interface OptionChainActions {
 type OptionChainContextValue = OptionChainState & OptionChainActions;
 
 // ============================================================================
+// Default Context Value (for SSR/SSG)
+// ============================================================================
+
+const defaultContextValue: OptionChainContextValue = {
+  // State
+  currentPage: null,
+  currentContextType: null,
+  currentMetadata: null,
+  settings: {
+    theme: 'light',
+    device: 'desktop',
+    locale: 'en-US',
+  },
+  isAiPanelOpen: false,
+  isAiLoading: false,
+  lastAiResponse: null,
+  lastError: null,
+
+  // Actions (no-ops for SSR)
+  setCurrentContext: () => {},
+  clearContext: () => {},
+  updateSettings: () => {},
+  openAiPanel: () => {},
+  closeAiPanel: () => {},
+  toggleAiPanel: () => {},
+  setAiLoading: () => {},
+  setAiResponse: () => {},
+  setError: () => {},
+  getContextEnvelope: () => null,
+};
+
+// ============================================================================
 // Context Creation
 // ============================================================================
 
-const OptionChainContext = createContext<OptionChainContextValue | undefined>(
-  undefined
+const OptionChainContext = createContext<OptionChainContextValue>(
+  defaultContextValue
 );
 
 // ============================================================================
@@ -211,13 +243,7 @@ export function OptionChainProvider({ children }: OptionChainProviderProps) {
 // ============================================================================
 
 export function useOptionChain(): OptionChainContextValue {
-  const context = useContext(OptionChainContext);
-
-  if (context === undefined) {
-    throw new Error('useOptionChain must be used within an OptionChainProvider');
-  }
-
-  return context;
+  return useContext(OptionChainContext);
 }
 
 export default OptionChainProvider;

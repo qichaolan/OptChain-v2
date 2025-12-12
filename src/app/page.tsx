@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 
+// Force dynamic rendering to avoid SSG issues with context providers
+export const dynamic = 'force-dynamic';
+
 /**
  * Home Page - OptChain
  *

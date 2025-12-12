@@ -30,6 +30,8 @@ COPY . .
 # Exclude backend from Next.js build
 RUN rm -rf backend
 
+# Set NODE_ENV for the build to avoid prerendering issues
+ENV NODE_ENV=production
 RUN npm run build
 
 # ============================================================================
@@ -124,6 +126,8 @@ COPY --from=deps /app/node_modules/debug ./node_modules/debug
 COPY --from=deps /app/node_modules/ms ./node_modules/ms
 COPY --from=deps /app/node_modules/fast-xml-parser ./node_modules/fast-xml-parser
 COPY --from=deps /app/node_modules/strnum ./node_modules/strnum
+COPY --from=deps /app/node_modules/json-bigint ./node_modules/json-bigint
+COPY --from=deps /app/node_modules/bignumber.js ./node_modules/bignumber.js
 
 # Copy sharp for Next.js image optimization (from Debian-based stage for glibc)
 COPY --from=sharp-deps /app/node_modules/sharp ./node_modules/sharp

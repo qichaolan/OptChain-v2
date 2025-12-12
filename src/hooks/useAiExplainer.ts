@@ -1,147 +1,118 @@
 'use client';
 
 /**
- * useAiExplainer Hook
+ * AI Explainer Hook
  *
- * Custom hook for invoking AI explainer functionality.
- * Provides a simple interface for components to request AI analysis.
+ * Provides AI-powered analysis of options strategies.
+ * Uses direct API calls to the backend AI explainer endpoint.
  */
 
-import { useState, useCallback } from 'react';
-import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
+import { useState, useCallback, useRef } from 'react';
 import { useOptionChain } from '@/contexts';
-import { handleAiExplainerAction, AI_EXPLAINER_ACTION } from '@/actions';
-import { AiExplainerContent, CopilotActionResult } from '@/types/ai-response';
-import { ContextEnvelope, PageMetadata } from '@/types';
+import { AiExplainerContent } from '@/types/ai-response';
 
-// ============================================================================
-// Hook Return Type
-// ============================================================================
+// Simple in-memory cache for AI responses
+const responseCache = new Map<string, { result: AiExplainerContent; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-interface UseAiExplainerReturn {
-  // State
+export interface UseAiExplainerReturn {
   isLoading: boolean;
   error: string | null;
   result: AiExplainerContent | null;
   fromCache: boolean;
-
-  // Actions
   analyze: () => Promise<void>;
-  analyzeWithContext: (context: ContextEnvelope<PageMetadata>) => Promise<void>;
-  clearResult: () => void;
+  clearCache: () => void;
 }
 
-// ============================================================================
-// Hook Implementation
-// ============================================================================
-
+/**
+ * Hook for AI-powered analysis of options strategies
+ */
 export function useAiExplainer(): UseAiExplainerReturn {
-  const {
-    getContextEnvelope,
-    setAiLoading,
-    setAiResponse,
-    setError: setContextError,
-  } = useOptionChain();
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AiExplainerContent | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Register the action with CopilotKit.
-  // The 'any' cast is required because CopilotKit's Parameter[] type uses complex
-  // generics that don't align with our simplified action definition format.
-  // Runtime behavior is correct - this only affects compile-time type checking.
-  useCopilotAction({
-    name: AI_EXPLAINER_ACTION.name,
-    description: AI_EXPLAINER_ACTION.description,
-    parameters: AI_EXPLAINER_ACTION.parameters as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-    handler: async (args: Record<string, unknown>) => {
-      const context = args.context as ContextEnvelope<PageMetadata>;
-      const actionResult = await handleAiExplainerAction(context);
-      if (actionResult.success && actionResult.data) {
-        setResult(actionResult.data);
-        setFromCache(actionResult.fromCache || false);
-      }
-      return actionResult;
-    },
-  });
+  const { currentPage, currentContextType, currentMetadata } = useOptionChain();
 
-  // Make current context readable by CopilotKit
-  useCopilotReadable({
-    description: 'Current options simulation context',
-    value: getContextEnvelope(),
-  });
-
-  // Analyze using current context
   const analyze = useCallback(async () => {
-    const context = getContextEnvelope();
-
-    if (!context) {
-      setError('No simulation context available. Please run a simulation first.');
+    // Validate we have the necessary context
+    if (!currentPage || !currentContextType || !currentMetadata) {
+      setError('No context available for analysis');
       return;
     }
 
+    // Create cache key from context
+    const cacheKey = JSON.stringify({
+      page: currentPage,
+      contextType: currentContextType,
+      metadata: currentMetadata,
+    });
+
+    // Check cache first
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      setResult(cached.result);
+      setFromCache(true);
+      setError(null);
+      return;
+    }
+
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsLoading(true);
-    setAiLoading(true);
     setError(null);
+    setFromCache(false);
 
     try {
-      const actionResult = await handleAiExplainerAction(context);
+      const response = await fetch('/api/ai-explainer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pageId: currentPage,
+          contextType: currentContextType,
+          metadata: currentMetadata,
+          timestamp: new Date().toISOString(),
+        }),
+        signal: abortControllerRef.current.signal,
+      });
 
-      if (actionResult.success && actionResult.data) {
-        setResult(actionResult.data);
-        setFromCache(actionResult.fromCache || false);
-        setAiResponse(actionResult.data);
-      } else {
-        setError(actionResult.error || 'Failed to get AI analysis');
-        setContextError(actionResult.error || 'Failed to get AI analysis');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.status}`);
       }
+
+      const data = await response.json();
+
+      // Cache the result
+      responseCache.set(cacheKey, {
+        result: data,
+        timestamp: Date.now(),
+      });
+
+      setResult(data);
+      setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
-      setContextError(errorMessage);
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Request was cancelled, don't update state
+        return;
+      }
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+      setResult(null);
     } finally {
       setIsLoading(false);
-      setAiLoading(false);
     }
-  }, [getContextEnvelope, setAiLoading, setAiResponse, setContextError]);
+  }, [currentPage, currentContextType, currentMetadata]);
 
-  // Analyze with explicit context
-  const analyzeWithContext = useCallback(
-    async (context: ContextEnvelope<PageMetadata>) => {
-      setIsLoading(true);
-      setAiLoading(true);
-      setError(null);
-
-      try {
-        const actionResult = await handleAiExplainerAction(context);
-
-        if (actionResult.success && actionResult.data) {
-          setResult(actionResult.data);
-          setFromCache(actionResult.fromCache || false);
-          setAiResponse(actionResult.data);
-        } else {
-          setError(actionResult.error || 'Failed to get AI analysis');
-          setContextError(actionResult.error || 'Failed to get AI analysis');
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setError(errorMessage);
-        setContextError(errorMessage);
-      } finally {
-        setIsLoading(false);
-        setAiLoading(false);
-      }
-    },
-    [setAiLoading, setAiResponse, setContextError]
-  );
-
-  // Clear result
-  const clearResult = useCallback(() => {
-    setResult(null);
-    setFromCache(false);
-    setError(null);
+  const clearCache = useCallback(() => {
+    responseCache.clear();
   }, []);
 
   return {
@@ -150,8 +121,7 @@ export function useAiExplainer(): UseAiExplainerReturn {
     result,
     fromCache,
     analyze,
-    analyzeWithContext,
-    clearResult,
+    clearCache,
   };
 }
 

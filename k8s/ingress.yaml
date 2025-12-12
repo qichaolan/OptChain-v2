@@ -25,7 +25,7 @@ metadata:
   namespace: optchain
 spec:
   redirectToHttps:
-    enabled: true
+    enabled: false  # Disabled until cert is ready
     responseCodeName: MOVED_PERMANENTLY_DEFAULT
 
 ---

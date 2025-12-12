@@ -23,6 +23,6 @@ commonLabels:
 
 # Image customization - update tag during CI/CD
 images:
-  - name: gcr.io/PROJECT_ID/optchain
-    newName: gcr.io/PROJECT_ID/optchain
+  - name: gcr.io/mythic-delight-114820/optchain
+    newName: gcr.io/mythic-delight-114820/optchain
     newTag: latest

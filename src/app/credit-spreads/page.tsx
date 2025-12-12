@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Credit Spreads Page - Native UI with Direct API Calls
  *
@@ -10,7 +12,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useOptionChain } from '@/contexts';
-import { Navigation } from '@/components';
+import { Navigation, MobileSelectSheet, SelectOption } from '@/components';
 import { InlineAiInsights } from '@/components/ai';
 import {
   CreditSpreadMetadata,
@@ -93,12 +95,20 @@ const formatTimestamp = (isoString: string) => {
 // Components
 // =============================================================================
 
-// Tooltip Component
+// Tooltip Component - Touch-friendly with tap support
 function Tooltip({ text, position = 'below' }: { text: string; position?: 'above' | 'below' }) {
+  const [isOpen, setIsOpen] = useState(false);
   const isBelow = position === 'below';
+
   return (
-    <div className="group relative inline-block ml-1">
-      <span className="cursor-help text-gray-400 hover:text-gray-600 text-xs">
+    <div className="relative inline-block ml-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        onBlur={() => setIsOpen(false)}
+        className="cursor-help text-gray-400 hover:text-gray-600 text-xs focus:outline-none"
+        aria-label="Show help"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
@@ -111,29 +121,53 @@ function Tooltip({ text, position = 'below' }: { text: string; position?: 'above
             clipRule="evenodd"
           />
         </svg>
-      </span>
-      <div className={`invisible group-hover:visible absolute z-50 w-64 p-2 text-xs text-white bg-gray-800 rounded-md shadow-lg -left-28 ${isBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
-        {text}
-        <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-transparent ${isBelow ? 'bottom-full border-b-4 border-b-gray-800' : 'top-full border-t-4 border-t-gray-800'}`}></div>
-      </div>
+      </button>
+      {isOpen && (
+        <div className={`absolute z-50 w-64 p-2 text-xs text-white bg-gray-800 rounded-md shadow-lg -left-28 ${isBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
+          {text}
+          <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-transparent ${isBelow ? 'bottom-full border-b-4 border-b-gray-800' : 'top-full border-t-4 border-t-gray-800'}`}></div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Ticker Dropdown Component
+// Ticker Dropdown Component - Uses MobileSelectSheet on mobile
 function TickerDropdown({
   value,
   onChange,
   disabled,
+  isMobile,
 }: {
   value: string;
   onChange: (val: string) => void;
   disabled: boolean;
+  isMobile: boolean;
 }) {
-  const tickers = ['SPY', 'QQQ'];
+  const tickers = ['SPY', 'QQQ', 'NVDA', 'PLTR', 'ORCL', 'TSLA', 'GOOG'];
 
+  const tickerOptions: SelectOption[] = tickers.map((t) => ({
+    value: t,
+    label: t,
+  }));
+
+  // Mobile: use MobileSelectSheet
+  if (isMobile) {
+    return (
+      <MobileSelectSheet
+        label="Ticker"
+        sheetTitle="Select Ticker"
+        options={tickerOptions}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
+
+  // Desktop: native select
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       <label className="text-xs font-medium text-gray-600">Ticker</label>
       <select
         value={value}
@@ -172,9 +206,9 @@ function CompactRangeInput({
   tooltip?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       <div className="flex items-center h-4">
-        <label className="text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
+        <label className="text-[10px] md:text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
         {tooltip && <Tooltip text={tooltip} />}
       </div>
       <div className="flex items-center gap-1">
@@ -185,9 +219,9 @@ function CompactRangeInput({
           min={min}
           max={maxValue - step}
           step={step}
-          className="w-14 h-9 px-1 border border-gray-300 rounded-md text-sm text-center"
+          className="w-12 md:w-14 h-7 md:h-9 px-1 border border-gray-300 rounded-md text-xs md:text-sm text-center"
         />
-        <span className="text-gray-400 text-xs">-</span>
+        <span className="text-gray-400 text-[10px]">-</span>
         <input
           type="number"
           value={maxValue}
@@ -195,7 +229,7 @@ function CompactRangeInput({
           min={minValue + step}
           max={max}
           step={step}
-          className="w-14 h-9 px-1 border border-gray-300 rounded-md text-sm text-center"
+          className="w-12 md:w-14 h-7 md:h-9 px-1 border border-gray-300 rounded-md text-xs md:text-sm text-center"
         />
       </div>
     </div>
@@ -223,9 +257,9 @@ function CompactValueInput({
   tooltip?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       <div className="flex items-center h-4">
-        <label className="text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
+        <label className="text-[10px] md:text-xs font-medium text-gray-600 whitespace-nowrap">{label}</label>
         {tooltip && <Tooltip text={tooltip} />}
       </div>
       <div className="flex items-center gap-1">
@@ -236,37 +270,59 @@ function CompactValueInput({
           min={min}
           max={max}
           step={step}
-          className="w-16 h-9 px-2 border border-gray-300 rounded-md text-sm text-center"
+          className="w-14 md:w-16 h-7 md:h-9 px-1.5 md:px-2 border border-gray-300 rounded-md text-xs md:text-sm text-center"
         />
-        {suffix && <span className="text-xs text-gray-500">{suffix}</span>}
+        {suffix && <span className="text-[10px] md:text-xs text-gray-500">{suffix}</span>}
       </div>
     </div>
   );
 }
 
-// Spread Type Dropdown Component
+// Spread Type Dropdown Component - Uses MobileSelectSheet on mobile
 function SpreadTypeDropdown({
   value,
   onChange,
   pcsCount,
   ccsCount,
+  isMobile,
 }: {
   value: SpreadTypeFilter;
   onChange: (val: SpreadTypeFilter) => void;
   pcsCount: number;
   ccsCount: number;
+  isMobile: boolean;
 }) {
+  const typeOptions: SelectOption[] = [
+    { value: 'PCS', label: 'PCS', sublabel: `${pcsCount} spreads` },
+    { value: 'CCS', label: 'CCS', sublabel: `${ccsCount} spreads` },
+    { value: 'ALL', label: 'All', sublabel: `${pcsCount + ccsCount} spreads` },
+  ];
+
+  // Mobile: use MobileSelectSheet
+  if (isMobile) {
+    return (
+      <MobileSelectSheet
+        label="Type"
+        sheetTitle="Select Spread Type"
+        options={typeOptions}
+        value={value}
+        onChange={(val) => onChange(val as SpreadTypeFilter)}
+      />
+    );
+  }
+
+  // Desktop: native select
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600">Spread Type</label>
+    <div className="flex flex-col gap-0.5">
+      <label className="text-xs font-medium text-gray-600">Type</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as SpreadTypeFilter)}
         className="h-9 px-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <option value="PCS">Put Credit ({pcsCount})</option>
-        <option value="CCS">Call Credit ({ccsCount})</option>
-        <option value="ALL">All Spreads</option>
+        <option value="PCS">PCS ({pcsCount})</option>
+        <option value="CCS">CCS ({ccsCount})</option>
+        <option value="ALL">All</option>
       </select>
     </div>
   );
@@ -578,15 +634,16 @@ export default function CreditSpreadsPage() {
       >
         {/* Main Content - shrinks when AI panel opens */}
         <div className={`h-full transition-all duration-300 ease-out overflow-auto min-w-0 ${showAiPanel && currentMetadata ? 'flex-1' : 'w-full'}`}>
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            {/* Controls Section - Single Row */}
-            <div className="bg-white rounded-lg border shadow-sm p-3 mb-4">
-              <div className="flex flex-wrap items-end gap-3">
+          <div className="max-w-7xl mx-auto px-2 md:px-4 py-3 md:py-6">
+            {/* Controls Section - Responsive grid on mobile, row on desktop */}
+            <div className="bg-white rounded-lg border shadow-sm p-2 md:p-3 mb-3 md:mb-4">
+              <div className="flex flex-wrap items-end gap-2 md:gap-3">
                 {/* Ticker Dropdown */}
                 <TickerDropdown
                   value={ticker}
                   onChange={setTicker}
                   disabled={isLoading}
+                  isMobile={isMobile}
                 />
 
                 {/* Spread Type Dropdown */}
@@ -595,6 +652,7 @@ export default function CreditSpreadsPage() {
                   onChange={setSpreadTypeFilter}
                   pcsCount={totalPcs}
                   ccsCount={totalCcs}
+                  isMobile={isMobile}
                 />
 
                 {/* DTE Range */}
@@ -661,29 +719,29 @@ export default function CreditSpreadsPage() {
                 <button
                   onClick={fetchSpreads}
                   disabled={isLoading}
-                  className="h-9 px-4 bg-blue-600 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                  className="h-7 md:h-9 px-2 md:px-4 bg-blue-600 text-white rounded-md text-xs md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-1.5"
                 >
                   {isLoading ? (
                     <>
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-3 w-3 md:h-3.5 md:w-3.5" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      <span>Screening...</span>
+                      <span className="hidden md:inline">Screening...</span>
                     </>
                   ) : (
                     <>
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="h-3 w-3 md:h-3.5 md:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
-                      <span>Screen</span>
+                      <span className="hidden md:inline">Screen</span>
                     </>
                   )}
                 </button>
 
-                {/* Summary Stats */}
+                {/* Summary Stats - Hidden on mobile, shown as badges */}
                 {underlyingPrice > 0 && (
-                  <div className="flex items-center gap-2 ml-auto text-sm">
+                  <div className="hidden md:flex items-center gap-2 ml-auto text-sm">
                     <span className="font-semibold text-gray-900">{ticker}</span>
                     <span className="font-bold text-blue-600">{formatCurrency(underlyingPrice)}</span>
                     {ivp > 0 && (
@@ -699,22 +757,41 @@ export default function CreditSpreadsPage() {
                   </div>
                 )}
               </div>
+              {/* Mobile summary row */}
+              {underlyingPrice > 0 && (
+                <div className="md:hidden flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">{ticker}</span>
+                    <span className="font-bold text-blue-600">{formatCurrency(underlyingPrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {ivp > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        ivp >= 50 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        IVP {ivp.toFixed(0)}%
+                      </span>
+                    )}
+                    <span className="text-gray-500">{filteredSpreads.length} found</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Results Table */}
             {filteredSpreads.length > 0 && (
               <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="p-4 border-b flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold">Credit Spread Opportunities</h2>
+                <div className="p-2 md:p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-1">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <h2 className="text-sm md:text-lg font-semibold">Credit Spreads</h2>
                     {timestamp && (
-                      <span className="text-sm text-gray-500">
-                        Updated: {formatTimestamp(timestamp)}
+                      <span className="text-[10px] md:text-sm text-gray-500">
+                        {formatTimestamp(timestamp)}
                       </span>
                     )}
                   </div>
-                  <span className="text-sm text-gray-500">
-                    Click a row to analyze with AI
+                  <span className="text-[10px] md:text-sm text-gray-500">
+                    Tap to analyze
                   </span>
                 </div>
 
@@ -729,38 +806,38 @@ export default function CreditSpreadsPage() {
 
             {/* Loading State */}
             {isLoading && (
-              <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-                <svg className="animate-spin h-8 w-8 mx-auto text-blue-600 mb-4" viewBox="0 0 24 24">
+              <div className="bg-white rounded-lg border shadow-sm p-6 md:p-12 text-center">
+                <svg className="animate-spin h-6 w-6 md:h-8 md:w-8 mx-auto text-blue-600 mb-2 md:mb-4" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <p className="text-gray-600">Screening credit spreads...</p>
+                <p className="text-sm md:text-base text-gray-600">Screening credit spreads...</p>
               </div>
             )}
 
             {/* Error State */}
             {error && !isLoading && filteredSpreads.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4 text-sm md:text-base text-yellow-800">
                 {error}
               </div>
             )}
 
             {/* Empty State */}
             {!isLoading && filteredSpreads.length === 0 && !error && spreads.length === 0 && (
-              <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-                <div className="text-4xl mb-4">📊</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Screen for Credit Spreads</h3>
-                <p className="text-gray-600">
-                  Adjust the filters above and click "Screen Spreads" to find opportunities.
+              <div className="bg-white rounded-lg border shadow-sm p-6 md:p-12 text-center">
+                <div className="text-2xl md:text-4xl mb-2 md:mb-4">📊</div>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">Screen for Credit Spreads</h3>
+                <p className="text-sm md:text-base text-gray-600">
+                  Adjust filters and click "Screen Spreads" to find opportunities.
                 </p>
               </div>
             )}
 
             {/* Footer */}
-            <footer className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-500 text-sm space-y-2">
+            <footer className="mt-6 md:mt-12 pt-4 md:pt-8 border-t border-gray-200 text-center text-gray-500 text-xs md:text-sm space-y-1 md:space-y-2">
               <p>
                 <Link href="/about" className="text-blue-600 hover:underline font-medium">
-                  About OptChain
+                  About
                 </Link>
                 {' '}&middot;{' '}
                 <a
@@ -779,7 +856,7 @@ export default function CreditSpreadsPage() {
                   Contact
                 </a>
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-[10px] md:text-xs text-gray-400">
                 Educational use only. Not financial advice.
               </p>
             </footer>

@@ -82,6 +82,7 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
 
+
   // Security headers for all routes
   async headers() {
     return [

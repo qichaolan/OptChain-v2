@@ -1,4 +1,4 @@
-# OptChain Service - ClusterIP for internal access
+# OptChain Service - ClusterIP for Ingress
 apiVersion: v1
 kind: Service
 metadata:
@@ -20,21 +20,20 @@ spec:
       protocol: TCP
 
 ---
-# OptChain Service - NodePort for direct access (optional, for testing)
+# OptChain Service - LoadBalancer for direct IP access (HTTP only)
 apiVersion: v1
 kind: Service
 metadata:
-  name: optchain-nodeport
+  name: optchain-lb
   namespace: optchain
   labels:
     app: optchain
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: optchain
   ports:
     - name: http
       port: 80
       targetPort: 8080
-      nodePort: 30080
       protocol: TCP

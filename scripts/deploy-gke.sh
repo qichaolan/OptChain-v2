@@ -5,9 +5,9 @@
 set -e
 
 # Configuration
-PROJECT_ID="${1:-your-project-id}"
+PROJECT_ID="${1:-mythic-delight-114820}"
 CLUSTER_NAME="${2:-optchain-cluster}"
-REGION="${3:-us-central1}"
+REGION="${3:-us-west1}"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/optchain"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 

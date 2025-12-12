@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Chain Analysis Page
  *
@@ -10,7 +12,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useOptionChain } from '@/contexts';
-import { Navigation } from '@/components';
+import { Navigation, MobileSelectSheet, SelectOption } from '@/components';
 import { InlineAiInsights } from '@/components/ai';
 import {
   ChainAnalysisMetadata,
@@ -150,8 +152,8 @@ function TickerInput({
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600">Ticker</label>
+    <div className="flex flex-col gap-0.5">
+      <label className="text-[10px] md:text-xs font-medium text-gray-500">Ticker</label>
       <div className="flex items-center gap-1">
         <input
           type="text"
@@ -161,13 +163,13 @@ function TickerInput({
           onBlur={handleBlur}
           placeholder="SPY"
           maxLength={5}
-          className={`w-20 h-9 px-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-16 md:w-20 h-7 md:h-9 px-1.5 md:px-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             error ? 'border-red-500' : 'border-gray-300'
           }`}
           disabled={isLoading}
         />
         {isLoading && (
-          <svg className="animate-spin h-4 w-4 text-blue-600" viewBox="0 0 24 24">
+          <svg className="animate-spin h-3 w-3 md:h-4 md:w-4 text-blue-600" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
@@ -177,24 +179,27 @@ function TickerInput({
   );
 }
 
-// Expiration Dropdown Component
+// Expiration Dropdown Component - Uses MobileSelectSheet on mobile
 function ExpirationDropdown({
   expirations,
   selected,
   onSelect,
   disabled,
+  isMobile,
 }: {
   expirations: string[];
   selected: string;
   onSelect: (exp: string) => void;
   disabled: boolean;
+  isMobile: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (desktop only)
   useEffect(() => {
+    if (isMobile) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -207,7 +212,7 @@ function ExpirationDropdown({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   const formatExpDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -225,17 +230,43 @@ function ExpirationDropdown({
     return Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
+  // Convert expirations to SelectOption format for MobileSelectSheet
+  const expirationOptions: SelectOption[] = useMemo(() =>
+    expirations.map((exp) => ({
+      value: exp,
+      label: formatExpDate(exp),
+      sublabel: `${calculateDTE(exp)}d`,
+    })),
+    [expirations]
+  );
+
+  // Mobile: use MobileSelectSheet
+  if (isMobile) {
+    return (
+      <MobileSelectSheet
+        label="Expiration"
+        sheetTitle="Select Expiration"
+        options={expirationOptions}
+        value={selected}
+        onChange={onSelect}
+        disabled={disabled || expirations.length === 0}
+        placeholder="Select..."
+      />
+    );
+  }
+
+  // Desktop: custom dropdown with Load More pagination
   const visibleExpirations = expirations.slice(0, visibleCount);
   const hasMore = expirations.length > visibleCount;
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600">Expiration</label>
+    <div className="flex flex-col gap-0.5">
+      <label className="text-xs font-medium text-gray-500">Expiration</label>
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           disabled={disabled || expirations.length === 0}
-          className="h-9 px-2 border border-gray-300 rounded-md text-sm text-left bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
+          className="h-9 px-2 border border-gray-300 rounded text-sm text-left bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
         >
           {selected ? (
             <span className="flex justify-between gap-2">
@@ -279,13 +310,15 @@ function ExpirationDropdown({
   );
 }
 
-// Filter Buttons Component
+// Filter Buttons Component - Compact on mobile with horizontal scroll
 function FilterButtons({
   filter,
   onFilterChange,
+  isMobile,
 }: {
   filter: FilterType;
   onFilterChange: (f: FilterType) => void;
+  isMobile: boolean;
 }) {
   const getButtonStyle = (f: FilterType) => {
     if (filter !== f) return 'bg-gray-100 text-gray-700 hover:bg-gray-200';
@@ -297,7 +330,16 @@ function FilterButtons({
     }
   };
 
+  // Shorter labels on mobile
   const getButtonLabel = (f: FilterType) => {
+    if (isMobile) {
+      switch (f) {
+        case 'oi_chart': return 'OI';
+        case 'both': return 'Chain';
+        case 'call': return 'Calls';
+        case 'put': return 'Puts';
+      }
+    }
     switch (f) {
       case 'oi_chart': return 'OI Bars';
       case 'both': return 'Both';
@@ -306,6 +348,26 @@ function FilterButtons({
     }
   };
 
+  // Mobile: compact buttons with horizontal scroll
+  if (isMobile) {
+    return (
+      <div className="overflow-x-auto -mx-2 px-2">
+        <div className="flex gap-1.5 min-w-max">
+          {(['oi_chart', 'both', 'call', 'put'] as FilterType[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => onFilterChange(f)}
+              className={`px-3 py-1 h-8 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${getButtonStyle(f)}`}
+            >
+              {getButtonLabel(f)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: full-size buttons
   return (
     <div className="flex gap-2">
       {(['oi_chart', 'both', 'call', 'put'] as FilterType[]).map((f) => (
@@ -449,6 +511,9 @@ function OptionsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const atmRowRef = useRef<HTMLTableRowElement>(null);
 
+  // Mobile pagination state: how many rows to show (initial 10, expands by 10)
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(10);
+
   // Get all strikes sorted
   const allStrikes = useMemo(() => {
     const strikeSet = new Set<number>();
@@ -462,6 +527,38 @@ function OptionsTable({
     () => findAtmStrike(allStrikes, underlyingPrice),
     [allStrikes, underlyingPrice]
   );
+
+  // Find ATM strike index for mobile pagination
+  const atmStrikeIndex = useMemo(() => {
+    if (atmStrike === null) return Math.floor(allStrikes.length / 2);
+    const idx = allStrikes.indexOf(atmStrike);
+    return idx >= 0 ? idx : Math.floor(allStrikes.length / 2);
+  }, [allStrikes, atmStrike]);
+
+  // Calculate visible strikes for mobile (centered around ATM)
+  const mobileVisibleStrikes = useMemo(() => {
+    if (!isMobile) return allStrikes;
+
+    const halfVisible = Math.floor(mobileVisibleCount / 2);
+    let startIdx = Math.max(0, atmStrikeIndex - halfVisible);
+    let endIdx = startIdx + mobileVisibleCount;
+
+    // Adjust if we hit the end
+    if (endIdx > allStrikes.length) {
+      endIdx = allStrikes.length;
+      startIdx = Math.max(0, endIdx - mobileVisibleCount);
+    }
+
+    return allStrikes.slice(startIdx, endIdx);
+  }, [isMobile, allStrikes, atmStrikeIndex, mobileVisibleCount]);
+
+  // Check if all strikes are visible on mobile
+  const allStrikesVisible = mobileVisibleCount >= allStrikes.length;
+
+  // Reset visible count when data changes
+  useEffect(() => {
+    setMobileVisibleCount(10);
+  }, [calls, puts]);
 
   // Auto-scroll to ATM strike when data loads
   useEffect(() => {
@@ -493,61 +590,86 @@ function OptionsTable({
     }
   };
 
-  // Mobile-optimized card layout
+  // Mobile-optimized compact row layout with Load More pagination
   if (isMobile) {
-    // For "both" filter, show side-by-side call/put cards per strike
-    // For single filter (call/put), show individual option cards
+    // For "both" filter, show compact dual rows per strike
+    // For single filter (call/put), show single compact rows
+    const strikesToRender = mobileVisibleStrikes;
+    const remainingStrikes = allStrikes.length - mobileVisibleCount;
+
     return (
-      <div ref={tableContainerRef} className="max-h-[500px] overflow-y-auto px-2 py-2 space-y-2">
-        {allStrikes.map((strike) => {
+      <div ref={tableContainerRef} className="max-h-[500px] overflow-y-auto">
+        {/* Compact header */}
+        <div className="sticky top-0 z-10 bg-gray-100 border-b text-[10px] font-semibold text-gray-600 px-2 py-1.5 grid grid-cols-7 gap-1 text-center">
+          <span>Strike</span>
+          <span>Bid</span>
+          <span>Ask</span>
+          <span>Last</span>
+          <span>IV</span>
+          <span>Vol</span>
+          <span>OI</span>
+        </div>
+
+        {strikesToRender.map((strike) => {
           const call = getCallForStrike(strike);
           const put = getPutForStrike(strike);
-          const isAtm = strike <= underlyingPrice && (allStrikes[allStrikes.indexOf(strike) + 1] || Infinity) > underlyingPrice;
+          const isAtm = isAtmStrike(strike, atmStrike);
           const callSelected = isCallSelected(call);
           const putSelected = isPutSelected(put);
 
           if (filter === 'both') {
-            // Show side-by-side call/put for the same strike
+            // Show two compact rows (Call + Put) per strike
             return (
               <div
                 key={strike}
-                ref={isAtmStrike(strike, atmStrike) ? atmRowRef : undefined}
-                className={`rounded-lg border ${isAtm ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-white'}`}
+                ref={isAtm ? atmRowRef : undefined}
+                className={`border-b ${isAtm ? 'bg-yellow-50' : ''}`}
               >
-                {/* Strike header */}
-                <div className={`text-center py-1.5 text-sm font-bold border-b ${isAtm ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
-                  {formatCurrency(strike)} {isAtm && <span className="text-xs font-normal">(ATM)</span>}
-                </div>
-                {/* Call and Put side by side */}
-                <div className="flex">
-                  {/* Call side */}
+                {/* Call row */}
+                {call && (
                   <div
-                    className={`flex-1 p-2 cursor-pointer transition-colors border-r ${
+                    className={`grid grid-cols-7 gap-1 px-2 py-1.5 text-[11px] items-center cursor-pointer ${
                       callSelected ? 'bg-green-100' : 'hover:bg-green-50'
-                    } ${!call ? 'opacity-50' : ''}`}
+                    }`}
                     onClick={(e) => handleOptionClick(call, e)}
                   >
-                    <div className="text-xs text-green-700 font-semibold mb-1">CALL</div>
-                    <div className="text-sm font-medium">{call ? formatCurrency(call.lastPrice) : '-'}</div>
-                    <div className="text-xs text-gray-500">IV: {call ? formatPercent(call.impliedVolatility) : '-'}</div>
+                    <span className={`font-bold text-center ${isAtm ? 'text-yellow-700' : 'text-gray-900'}`}>
+                      {strike.toFixed(0)}
+                      <span className="text-green-600 ml-0.5 text-[9px]">C</span>
+                    </span>
+                    <span className="text-center text-green-700">{call.bid.toFixed(2)}</span>
+                    <span className="text-center text-green-700">{call.ask.toFixed(2)}</span>
+                    <span className="text-center font-medium">{call.lastPrice.toFixed(2)}</span>
+                    <span className="text-center text-gray-600">{call.impliedVolatility ? (call.impliedVolatility * 100).toFixed(0) : '-'}%</span>
+                    <span className="text-center text-gray-500">{call.volume > 999 ? (call.volume / 1000).toFixed(1) + 'K' : call.volume}</span>
+                    <span className="text-center text-gray-500">{call.openInterest > 999 ? (call.openInterest / 1000).toFixed(1) + 'K' : call.openInterest}</span>
                   </div>
-                  {/* Put side */}
+                )}
+                {/* Put row */}
+                {put && (
                   <div
-                    className={`flex-1 p-2 cursor-pointer transition-colors ${
+                    className={`grid grid-cols-7 gap-1 px-2 py-1.5 text-[11px] items-center cursor-pointer ${
                       putSelected ? 'bg-red-100' : 'hover:bg-red-50'
-                    } ${!put ? 'opacity-50' : ''}`}
+                    }`}
                     onClick={(e) => handleOptionClick(put, e)}
                   >
-                    <div className="text-xs text-red-700 font-semibold mb-1">PUT</div>
-                    <div className="text-sm font-medium">{put ? formatCurrency(put.lastPrice) : '-'}</div>
-                    <div className="text-xs text-gray-500">IV: {put ? formatPercent(put.impliedVolatility) : '-'}</div>
+                    <span className={`font-bold text-center ${isAtm ? 'text-yellow-700' : 'text-gray-900'}`}>
+                      {strike.toFixed(0)}
+                      <span className="text-red-600 ml-0.5 text-[9px]">P</span>
+                    </span>
+                    <span className="text-center text-red-700">{put.bid.toFixed(2)}</span>
+                    <span className="text-center text-red-700">{put.ask.toFixed(2)}</span>
+                    <span className="text-center font-medium">{put.lastPrice.toFixed(2)}</span>
+                    <span className="text-center text-gray-600">{put.impliedVolatility ? (put.impliedVolatility * 100).toFixed(0) : '-'}%</span>
+                    <span className="text-center text-gray-500">{put.volume > 999 ? (put.volume / 1000).toFixed(1) + 'K' : put.volume}</span>
+                    <span className="text-center text-gray-500">{put.openInterest > 999 ? (put.openInterest / 1000).toFixed(1) + 'K' : put.openInterest}</span>
                   </div>
-                </div>
+                )}
               </div>
             );
           }
 
-          // Single filter (call or put only)
+          // Single filter (call or put only) - single compact row
           const option = filter === 'call' ? call : put;
           const optionSelected = filter === 'call' ? callSelected : putSelected;
           const isCall = filter === 'call';
@@ -557,44 +679,37 @@ function OptionsTable({
           return (
             <div
               key={strike}
-              ref={isAtmStrike(strike, atmStrike) ? atmRowRef : undefined}
-              className={`p-3 rounded-lg border transition-all ${
+              ref={isAtm ? atmRowRef : undefined}
+              className={`grid grid-cols-7 gap-1 px-2 py-1.5 text-[11px] items-center cursor-pointer border-b ${
                 optionSelected
-                  ? isCall ? 'bg-green-50 border-green-300 shadow-md' : 'bg-red-50 border-red-300 shadow-md'
-                  : isCall ? 'bg-white border-gray-200 hover:border-green-200 hover:shadow-sm' : 'bg-white border-gray-200 hover:border-red-200 hover:shadow-sm'
-              } ${isAtm ? 'ring-2 ring-yellow-400' : ''}`}
+                  ? isCall ? 'bg-green-100' : 'bg-red-100'
+                  : isCall ? 'hover:bg-green-50' : 'hover:bg-red-50'
+              } ${isAtm ? 'bg-yellow-50' : ''}`}
               onClick={(e) => handleOptionClick(option, e)}
             >
-              {/* Header row: Strike + Type badge */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-gray-900">{formatCurrency(strike)}</span>
-                  {isAtm && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">ATM</span>}
-                </div>
-                <span className={`px-2 py-1 rounded text-xs font-bold ${
-                  isCall ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                }`}>
-                  {isCall ? 'CALL' : 'PUT'}
-                </span>
-              </div>
-              {/* Details row */}
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-500">Premium:</span>
-                  <span className="font-semibold">{formatCurrency(option.lastPrice)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-500">IV:</span>
-                  <span className="font-medium">{formatPercent(option.impliedVolatility)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-500">OI:</span>
-                  <span className="font-medium">{formatNumber(option.openInterest)}</span>
-                </div>
-              </div>
+              <span className={`font-bold text-center ${isAtm ? 'text-yellow-700' : 'text-gray-900'}`}>
+                {strike.toFixed(0)}
+                {isAtm && <span className="text-yellow-600 ml-0.5 text-[8px]">ATM</span>}
+              </span>
+              <span className={`text-center ${isCall ? 'text-green-700' : 'text-red-700'}`}>{option.bid.toFixed(2)}</span>
+              <span className={`text-center ${isCall ? 'text-green-700' : 'text-red-700'}`}>{option.ask.toFixed(2)}</span>
+              <span className="text-center font-medium">{option.lastPrice.toFixed(2)}</span>
+              <span className="text-center text-gray-600">{option.impliedVolatility ? (option.impliedVolatility * 100).toFixed(0) : '-'}%</span>
+              <span className="text-center text-gray-500">{option.volume > 999 ? (option.volume / 1000).toFixed(1) + 'K' : option.volume}</span>
+              <span className="text-center text-gray-500">{option.openInterest > 999 ? (option.openInterest / 1000).toFixed(1) + 'K' : option.openInterest}</span>
             </div>
           );
         })}
+
+        {/* Load More button - only show if more strikes available */}
+        {!allStrikesVisible && remainingStrikes > 0 && (
+          <button
+            onClick={() => setMobileVisibleCount((prev) => Math.min(prev + 10, allStrikes.length))}
+            className="w-full py-3 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors border-t border-blue-100"
+          >
+            Load More ({remainingStrikes} remaining)
+          </button>
+        )}
       </div>
     );
   }
@@ -1019,10 +1134,10 @@ export default function ChainAnalysisPage() {
 
       {/* Main Content - shrinks when AI panel opens */}
       <div className={`h-full transition-all duration-300 ease-out overflow-auto min-w-0 ${showAiPanel && currentMetadata ? 'flex-1' : 'w-full'}`}>
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-2 md:px-4 py-3 md:py-6">
         {/* Controls Section */}
-        <div className="bg-white rounded-lg border shadow-sm p-4 mb-6">
-          <div className="flex flex-wrap items-end gap-3">
+        <div className="bg-white rounded-lg border shadow-sm p-2 md:p-4 mb-4 md:mb-6">
+          <div className="flex flex-wrap items-end gap-2 md:gap-3">
             <TickerInput
               value={ticker}
               onChange={setTicker}
@@ -1036,28 +1151,29 @@ export default function ChainAnalysisPage() {
               selected={selectedExpiration}
               onSelect={setSelectedExpiration}
               disabled={expirations.length === 0 || isLoadingExpirations}
+              isMobile={isMobile}
             />
 
             <button
               onClick={() => fetchChain(true)}
               disabled={!ticker || !selectedExpiration || isLoadingChain}
-              className="h-9 px-4 bg-blue-600 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+              className="h-7 md:h-9 px-2 md:px-4 bg-blue-600 text-white rounded text-xs md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
               title="Refresh data (bypasses cache)"
             >
               {isLoadingChain ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <span className="flex items-center justify-center gap-1 md:gap-2">
+                  <svg className="animate-spin h-3 w-3 md:h-4 md:w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Loading...
+                  <span className="hidden md:inline">Loading...</span>
                 </span>
               ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="flex items-center justify-center gap-1 md:gap-2">
+                  <svg className="h-3 w-3 md:h-4 md:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Refresh
+                  <span className="hidden md:inline">Refresh</span>
                 </span>
               )}
             </button>
@@ -1082,21 +1198,21 @@ export default function ChainAnalysisPage() {
           <div>
             {/* Options Table */}
             <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-              <div className="p-4 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold">Options Chain</h2>
+              <div className="p-2 md:p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div className="flex items-center justify-between md:justify-start gap-2 md:gap-3">
+                  <h2 className="text-sm md:text-lg font-semibold">Options Chain</h2>
                   {chainTimestamp && (
-                    <span className="text-sm text-gray-500 flex items-center gap-2">
-                      Updated: {formatTimestamp(chainTimestamp)}
+                    <span className="text-[10px] md:text-sm text-gray-500 flex items-center gap-1 md:gap-2">
+                      {isMobile ? formatTimestamp(chainTimestamp) : `Updated: ${formatTimestamp(chainTimestamp)}`}
                       {isFromCache && (
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded" title="Data loaded from cache">
+                        <span className="px-1 md:px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] md:text-xs rounded" title="Data loaded from cache">
                           Cached
                         </span>
                       )}
                     </span>
                   )}
                 </div>
-                <FilterButtons filter={filter} onFilterChange={setFilter} />
+                <FilterButtons filter={filter} onFilterChange={setFilter} isMobile={isMobile} />
               </div>
 
               {/* Conditionally render OI Chart or Options Table based on filter */}
@@ -1147,20 +1263,20 @@ export default function ChainAnalysisPage() {
 
         {/* Empty State */}
         {!isLoadingExpirations && !isLoadingChain && calls.length === 0 && puts.length === 0 && !error && (
-          <div className="bg-white rounded-lg border shadow-sm p-12 text-center">
-            <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Started</h3>
-            <p className="text-gray-600">
-              Enter a stock ticker above and select an expiration date to view the options chain.
+          <div className="bg-white rounded-lg border shadow-sm p-6 md:p-12 text-center">
+            <div className="text-2xl md:text-4xl mb-2 md:mb-4">📊</div>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">Get Started</h3>
+            <p className="text-sm md:text-base text-gray-600">
+              Enter a ticker and expiration to view the options chain.
             </p>
           </div>
         )}
 
         {/* Footer */}
-        <footer className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-500 text-sm space-y-2">
+        <footer className="mt-6 md:mt-12 pt-4 md:pt-8 border-t border-gray-200 text-center text-gray-500 text-xs md:text-sm space-y-1 md:space-y-2">
           <p>
             <Link href="/about" className="text-blue-600 hover:underline font-medium">
-              About OptChain
+              About
             </Link>
             {' '}&middot;{' '}
             <a
@@ -1179,7 +1295,7 @@ export default function ChainAnalysisPage() {
               Contact
             </a>
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-[10px] md:text-xs text-gray-400">
             Educational use only. Not financial advice.
           </p>
         </footer>
